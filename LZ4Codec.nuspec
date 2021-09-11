@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>LZ4Codec</id>
+    <version>2021.9.11</version>
+    <title>LZ4Codec</title>
+    <authors>Denis Balashov, Milosz Krajewski and contributors</authors>
+    <owners>Denis Balashov, Milosz Krajewski</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectUrl>https://github.com/DBalashov/LZ4Codec</projectUrl>
+    <description>LZ4 compression codec</description>
+    <summary>LZ4 compression codec</summary>
+    <releaseNotes></releaseNotes>
+    <copyright>© 2021 Denis Balashov</copyright>
+    <language>en-US</language>
+    <tags>lz4</tags>
+  </metadata>
+  <files>
+    <file src="LZ4Codec\bin\Release\net5.0\LZ4Codec.dll" target="lib\net5.0" />
+  </files>
+</package>

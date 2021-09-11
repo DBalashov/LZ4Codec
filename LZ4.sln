@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LZ4", "LZ4\LZ4.csproj", "{2E693E53-5E3E-4AFA-A06F-61606F895683}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LZ4Codec", "LZ4Codec\LZ4Codec.csproj", "{0C045D75-8C74-41F5-A820-E32A02D2860F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LZ4Codec.Tests", "LZ4Codec.Tests\LZ4Codec.Tests.csproj", "{223BD5DF-D647-43BF-854E-DBF4972618F8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2E693E53-5E3E-4AFA-A06F-61606F895683}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2E693E53-5E3E-4AFA-A06F-61606F895683}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2E693E53-5E3E-4AFA-A06F-61606F895683}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2E693E53-5E3E-4AFA-A06F-61606F895683}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0C045D75-8C74-41F5-A820-E32A02D2860F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0C045D75-8C74-41F5-A820-E32A02D2860F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0C045D75-8C74-41F5-A820-E32A02D2860F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0C045D75-8C74-41F5-A820-E32A02D2860F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{223BD5DF-D647-43BF-854E-DBF4972618F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{223BD5DF-D647-43BF-854E-DBF4972618F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{223BD5DF-D647-43BF-854E-DBF4972618F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{223BD5DF-D647-43BF-854E-DBF4972618F8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

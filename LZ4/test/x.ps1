@@ -1,0 +1,12 @@
+﻿#$cred = New-Object -TypeName System.Management.Automation.PSCredential -Argumentlist 'Administrator', (ConvertTo-SecureString -AsPlainText 'P@ssw0rd' -Force)
+#Invoke-Command -ComputerName 192.168.6.194 -Credential $cred -Authentication Negotiate -ScriptBlock { 
+#    Get-ChildItem 'D:\'
+#}
+
+#Get-ChildItem -Filter *.* -Directory | ConvertTo-Json
+#Get-ChildItem -Filter *.* -Directory | ConvertTo-Json
+
+$info = (Get-WmiObject -class "Win32_OperatingSystem")
+
+$totalmemory = [System.Math]::Ceiling($info.TotalPhysicalMemory / 1024 / 1024 / 1024)
+$totalmemory
