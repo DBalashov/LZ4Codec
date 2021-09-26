@@ -4,7 +4,7 @@ namespace LZ4
 {
     public static class LZ4Codec
     {
-        internal static readonly LZ4ServiceBase service = new LZ4Service64(); // new LZ4Service64()
+        internal static readonly LZ4ServiceBase service = new LZ4Service32(); // new LZ4Service64()
 
         public static Span<byte> PackLZ4(this Span<byte> inputBuffer) => service.Encode(inputBuffer);
 
