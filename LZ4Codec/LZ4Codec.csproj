@@ -1,9 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net5.0</TargetFramework>
-        <LangVersion>9</LangVersion>
-        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+        <TargetFramework>net6.0</TargetFramework>
+        <LangVersion>11</LangVersion>
+
+        <AssemblyName>LZ4Codec</AssemblyName>
+        <PackageId>LZ4Codec</PackageId>
+        <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+        <Version>2023.5.22.0</Version>
+        <AssemblyVersion>$(Version)</AssemblyVersion>
+        <FileVersion>$(Version)</FileVersion>
+        <requireLicenseAcceptance>false</requireLicenseAcceptance>
+        <Description>LZ4 compression codec. MIT License</Description>
+        <Authors>Denis Balashov, Milosz Krajewski and contributors</Authors>
+        <RepositoryUrl>https://github.com/DBalashov/LZ4Codec</RepositoryUrl>
+        <Copyright>Denis Balashov, Milosz Krajewski and contributors</Copyright>
+        <PackageTags>C#, lz4, pack</PackageTags>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
