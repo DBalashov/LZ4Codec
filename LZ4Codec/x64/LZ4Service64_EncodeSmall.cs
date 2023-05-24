@@ -6,7 +6,7 @@ namespace LZ4;
 
 partial class LZ4Service64
 {
-    // <=64K
+    /// <summary> for small data (&lt;=64K) </summary>
     protected override int encodeSmall(Span<ushort> hash_table, Span<byte> src, Span<byte> dst)
     {
         hash_table.Fill(0);

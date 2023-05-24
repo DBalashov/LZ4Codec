@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -13,6 +14,21 @@ using BenchmarkDotNet.Running;
 using LZ4;
 
 var summary = BenchmarkRunner.Run<MainTest>();
+
+// var rawFiles = Directory.EnumerateFiles(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "data"), "*.*")
+//                         .ToDictionary(Path.GetFileNameWithoutExtension, File.ReadAllBytes);
+// var packed = rawFiles["1024KB"].AsSpan().PackLZ4();
+//
+// var total  = 0;
+// var sw     = Stopwatch.StartNew();
+//
+// // for (var i = 0; i < 300; i++)
+// //     total += rawFiles["1024KB"].AsSpan().PackLZ4().Length;
+//
+// for (var i = 0; i < 500; i++)
+//     total += packed.UnpackLZ4().Length;
+//
+// Console.WriteLine(sw.ElapsedMilliseconds + " - " + total);
 
 [SimpleJob(RuntimeMoniker.Net70, baseline: true)]
 [WarmupCount(3)]

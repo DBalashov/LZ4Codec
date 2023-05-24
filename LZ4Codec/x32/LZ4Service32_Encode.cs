@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 
 // ReSharper disable UselessBinaryOperation
 
@@ -6,7 +7,7 @@ namespace LZ4;
 
 partial class LZ4Service32
 {
-    protected override int encode(Span<int> hash_table, Span<byte> src, Span<byte> dst)
+    protected override unsafe int encode(Span<int> hash_table, Span<byte> src, Span<byte> dst)
     {
         hash_table.Fill(0);
 
@@ -34,7 +35,6 @@ partial class LZ4Service32
         src_p++;
         var h_fwd = (src.Peek4(src_p) * MULTIPLIER) >> HASH_ADJUST;
 
-        // Main Loop
         while (true)
         {
             var findMatchAttempts = (1 << SKIPSTRENGTH) + 3;
@@ -88,7 +88,9 @@ partial class LZ4Service32
                     goto _next_match;
                 }
                 else
+                {
                     dst[dst_p++] = (byte) len;
+                }
             }
             else
             {
