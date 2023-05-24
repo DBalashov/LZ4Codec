@@ -14,6 +14,16 @@ using LZ4;
 
 var summary = BenchmarkRunner.Run<MainTest>();
 
+// var rawFiles = Directory.EnumerateFiles(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "data"), "*.*")
+//                         .ToDictionary(Path.GetFileNameWithoutExtension, File.ReadAllBytes);
+// var total = 0;
+// for (var i = 0; i < 100; i++)
+// {
+//     total += rawFiles["1024KB"].AsSpan().PackLZ4().Length;
+// }
+//
+// Console.WriteLine(total);
+
 [SimpleJob(RuntimeMoniker.Net70, baseline: true)]
 [WarmupCount(3)]
 [IterationCount(3)]
