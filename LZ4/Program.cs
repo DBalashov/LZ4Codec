@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Order;
@@ -26,8 +28,8 @@ public class MainTest
     Dictionary<string, byte[]> rawFiles;
     Dictionary<string, byte[]> packedFiles;
 
-    [Params("___1KB", "__16KB", "_128KB", "_512KB", "1024KB")]
-    public string FileName { get; set; }
+    [Params(1, 16, 128, 512, 1024)]
+    public int FileSize { get; set; }
 
     [Params(32, 64)]
     public int Bitness { get; set; }
@@ -45,7 +47,7 @@ public class MainTest
     {
         if (Bitness == 32) LZ4Codec.Use32Version();
         else LZ4Codec.Use64Version();
-        return rawFiles[FileName].AsSpan().PackLZ4().Length;
+        return rawFiles[FileSize.ToString()].AsSpan().PackLZ4().Length;
     }
 
     [Benchmark]
@@ -53,14 +55,18 @@ public class MainTest
     {
         if (Bitness == 32) LZ4Codec.Use32Version();
         else LZ4Codec.Use64Version();
-        return packedFiles[FileName].AsSpan().UnpackLZ4().Length;
+        return packedFiles[FileSize.ToString()].AsSpan().UnpackLZ4().Length;
     }
 
     #region Config
 
     class Config : ManualConfig
     {
-        public Config() => Orderer = new CustomOrderer();
+        public Config()
+        {
+            AddColumn(new SpeedColumn("Avg MB/sec"));
+            Orderer = new CustomOrderer();
+        }
 
         private class CustomOrderer : IOrderer
         {
@@ -84,6 +90,39 @@ public class MainTest
                 logicalGroups.OrderBy(it => it.Key);
 
             public bool SeparateLogicalGroups => false;
+        }
+    }
+
+
+    public class SpeedColumn : IColumn
+    {
+        public string Id         { get; }
+        public string ColumnName { get; }
+
+        public SpeedColumn(string columnName)
+        {
+            ColumnName = columnName;
+            Id         = nameof(TagColumn) + "." + ColumnName;
+        }
+
+        public bool   IsDefault(Summary summary, BenchmarkCase benchmarkCase) => false;
+        public string GetValue(Summary  summary, BenchmarkCase benchmarkCase) => GetValue(summary, benchmarkCase, SummaryStyle.Default);
+
+        public          bool           IsAvailable(Summary summary) => true;
+        public          bool           AlwaysShow                   => true;
+        public          ColumnCategory Category                     => ColumnCategory.Custom;
+        public          int            PriorityInCategory           => 0;
+        public          bool           IsNumeric                    => false;
+        public          UnitType       UnitType                     => UnitType.Dimensionless;
+        public          string         Legend                       => "Speed in MB/sec";
+        public override string         ToString()                   => ColumnName;
+
+        public string GetValue(Summary summary, BenchmarkCase benchmarkCase, SummaryStyle style)
+        {
+            var r     = summary[benchmarkCase].ResultStatistics;
+            var bytes = ((int) benchmarkCase.Parameters["FileSize"] / 1024.0);
+            var seconds   = r.Mean / 1_000_000_000;
+            return (bytes/seconds).ToString("F2", CultureInfo.InvariantCulture);
         }
     }
 

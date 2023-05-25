@@ -29,19 +29,19 @@
       <None Update="test\1024KB.bin">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
-      <None Update="data\___1KB.bin">
+      <None Update="data\1.bin">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
-      <None Update="data\__16KB.bin">
+      <None Update="data\16.bin">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
-      <None Update="data\_128KB.bin">
+      <None Update="data\128.bin">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
-      <None Update="data\_512KB.bin">
+      <None Update="data\512.bin">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
-      <None Update="data\1024KB.bin">
+      <None Update="data\1024.bin">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
     </ItemGroup>
