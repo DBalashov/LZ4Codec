@@ -8,7 +8,7 @@ public static class LZ4Codec
 
     public static Span<byte> PackLZ4(this Span<byte> inputBuffer) => service.Encode(inputBuffer);
 
-    public static Span<byte> UnpackLZ4(this Span<byte> inputBuffer) => service.Decode(inputBuffer);
+    public static byte[] UnpackLZ4(this Span<byte> inputBuffer) => service.Decode(inputBuffer);
 
     public static void Use64Version() => service = new LZ4Service64();
 

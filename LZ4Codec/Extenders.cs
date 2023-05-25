@@ -106,14 +106,14 @@ static class Extenders
 
     internal static unsafe void Copy4(this Span<byte> span, int src, int dst)
     {
-        fixed (byte* ptr = &span[dst], ptr2 = &span[src])
-            *(uint*) ptr = *(uint*) ptr2;
+        fixed (byte* ptrFrom = &span[src], ptrTo = &span[dst])
+            *(uint*) ptrTo = *(uint*) ptrFrom;
     }
 
     internal static unsafe void Copy8(this Span<byte> span, int src, int dst)
     {
-        fixed (byte* ptr = &span[dst], ptr2 = &span[src])
-            *(UInt64*) ptr = *(UInt64*) ptr2;
+        fixed (byte* ptrFrom = &span[src], ptrTo = &span[dst])
+            *(UInt64*) ptrTo = *(UInt64*) ptrFrom;
     }
 
     #endregion
@@ -122,8 +122,8 @@ static class Extenders
 
     internal static unsafe uint Xor4(this Span<byte> span, int offset1, int offset2)
     {
-        fixed (byte* ptr = &span[offset1], ptr2 = &span[offset2])
-            return *(uint*) ptr ^ *(uint*) ptr2;
+        fixed (byte* ptr1 = &span[offset1], ptr2 = &span[offset2])
+            return *(uint*) ptr1 ^ *(uint*) ptr2;
     }
 
     internal static unsafe ulong Xor8(this Span<byte> span, int offset1, int offset2)

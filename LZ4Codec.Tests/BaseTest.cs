@@ -71,6 +71,75 @@ public abstract class BaseTest
     }
 
     [Test]
+    public void StreamCompress_Compressable()
+    {
+        foreach (var data in dataCompressable)
+        {
+            var copyOfOriginal = data.Value.ToArray();
+
+            using var stm = new MemoryStream();
+            using var pk  = new LZ4CompressStream(stm);
+
+            while (copyOfOriginal.Any())
+            {
+                var part = copyOfOriginal.Take(Random.Shared.Next(data.Value.Length / 5, data.Value.Length / 3)).ToArray();
+                if (part.Length == 0) break;
+                pk.Write(part);
+
+                copyOfOriginal = copyOfOriginal.Skip(part.Length).ToArray();
+            }
+
+            pk.Flush();
+
+            var packed = stm.ToArray();
+            Assert.True(packed.Length <= data.Value.Length);
+
+            var unpacked = service.Decode(packed);
+            Assert.IsNotNull(unpacked);
+            Assert.IsTrue(unpacked.Length > 0);
+            Assert.True(unpacked.SequenceEqual(data.Value));
+        }
+    }
+
+    [Test]
+    public void StreamDecompress_Compressable()
+    {
+        foreach (var data in dataCompressable)
+        {
+            var copyOfOriginal = data.Value.ToArray();
+
+            using var stm = new MemoryStream();
+            using var pk  = new LZ4CompressStream(stm);
+
+            while (copyOfOriginal.Any())
+            {
+                var part = copyOfOriginal.Take(Random.Shared.Next(data.Value.Length / 5, data.Value.Length / 3)).ToArray();
+                if (part.Length == 0) break;
+                pk.Write(part);
+
+                copyOfOriginal = copyOfOriginal.Skip(part.Length).ToArray();
+            }
+
+            pk.Flush();
+
+            using var st    = new MemoryStream(stm.ToArray());
+            using var unpk  = new LZ4DecompressStream(st);
+            var       final = new MemoryStream();
+            while (true)
+            {
+                var buff = new byte[Random.Shared.Next(100, 100000)];
+                var read = unpk.Read(buff, 0, buff.Length);
+                if (read == 0) break;
+
+                final.Write(buff, 0, read);
+                if (read < buff.Length) break;
+            }
+
+            Assert.True(final.ToArray().SequenceEqual(data.Value));
+        }
+    }
+
+    [Test]
     public void EmptyPack()
     {
         var packed = service.Encode(Array.Empty<byte>());

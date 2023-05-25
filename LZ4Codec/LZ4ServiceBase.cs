@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using System.IO;
 
 namespace LZ4;
 
@@ -7,6 +8,7 @@ internal abstract class LZ4ServiceBase
 {
     protected static readonly ArrayPool<ushort> PoolUShorts = ArrayPool<ushort>.Shared;
     protected static readonly ArrayPool<int>    PoolInts    = ArrayPool<int>.Shared;
+    protected static readonly ArrayPool<byte>   PoolBytes   = ArrayPool<byte>.Shared;
 
     /// <summary>
     /// Memory usage formula : N->2^N Bytes (examples : 10 -> 1KB; 12 -> 4KB ; 16 -> 64KB; 20 -> 1MB; etc.)
@@ -19,7 +21,7 @@ internal abstract class LZ4ServiceBase
     protected const int COPYLENGTH   = 8;
     protected const int MINMATCH     = 4;
     protected const int MFLIMIT      = COPYLENGTH + MINMATCH;
-    protected const int LZ4_64KLIMIT = (1 << 16)  + (MFLIMIT - 1);
+    internal const  int LZ4_64KLIMIT = (1 << 16)  + (MFLIMIT - 1);
 
     protected const int HASH_LOG       = MEMORY_USAGE - 2;
     protected const int HASH_TABLESIZE = 1 << HASH_LOG;
@@ -63,28 +65,47 @@ internal abstract class LZ4ServiceBase
 
     #region public Decode / Encode
 
-    public virtual Span<byte> Decode(Span<byte> inputBuffer)
+    public virtual byte[] Decode(Span<byte> inputBuffer)
     {
-        if (inputBuffer.Length < 8)
-            return Array.Empty<byte>().AsSpan();
+        using var stm = new MemoryStream();
+        while (true)
+        {
+            if (inputBuffer.Length < 8) break;
 
-        var unpackedLength = inputBuffer.LZ4UnpackedLength();
-        var packedLength   = inputBuffer.LZ4PackedLength();
+            var unpackedLength = inputBuffer.LZ4UnpackedLength();
+            var packedLength   = inputBuffer.LZ4PackedLength();
 
-        if (packedLength == 0)
-            return inputBuffer.Slice(8);
+            if (packedLength < 0 || unpackedLength < 0)
+                throw new InvalidOperationException($"PackedLength or UnpackedLength has invalid value ({packedLength} / {unpackedLength})");
+            if (packedLength >= unpackedLength)
+                throw new InvalidOperationException($"PackedLength > UnpackedLength ({packedLength} > {unpackedLength})");
 
-        if (packedLength < 0 || unpackedLength < 0)
-            throw new InvalidOperationException($"PackedLength or UnpackedLength has invalid value ({packedLength} / {unpackedLength})");
+            if (packedLength == 0)
+            {
+                var slice = inputBuffer.Slice(8, unpackedLength);
+                stm.Write(slice);
+                inputBuffer = inputBuffer.Slice(8 + unpackedLength);
+            }
+            else
+            {
+                var outputBuffer = PoolBytes.Rent(unpackedLength);
+                try
+                {
+                    var r = decode(inputBuffer.Slice(8, packedLength),
+                                   outputBuffer.AsSpan(0, unpackedLength));
+                    if (r < 0) throw new InvalidOperationException($"Can't unpack at position {-r}");
 
-        if (packedLength >= unpackedLength)
-            throw new InvalidOperationException($"PackedLength > UnpackedLength ({packedLength} > {unpackedLength})");
+                    stm.Write(outputBuffer.AsSpan(0, unpackedLength));
+                    inputBuffer = inputBuffer.Slice(8 + packedLength);
+                }
+                finally
+                {
+                    PoolBytes.Return(outputBuffer);
+                }
+            }
+        }
 
-        var outputBuffer = new byte[unpackedLength];
-        var r            = decode(inputBuffer.Slice(8, packedLength), outputBuffer);
-        return r < 0
-                   ? throw new InvalidOperationException($"Can't unpack at position {-r}")
-                   : outputBuffer;
+        return stm.ToArray();
     }
 
     public Span<byte> Encode(Span<byte> input)

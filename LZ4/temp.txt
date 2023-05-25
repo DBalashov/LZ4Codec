@@ -1,0 +1,47 @@
+ var rawFiles = Directory.EnumerateFiles(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "data"), "*.*")
+                         .ToDictionary(Path.GetFileNameWithoutExtension, File.ReadAllBytes);
+
+ using var stm = new MemoryStream();
+ using var pk  = new LZ4CompressStream(stm);
+
+ var raw = rawFiles["1024KB"];
+
+ while (raw.Any())
+ {
+     var part = raw.Take(Random.Shared.Next(100, 100000)).ToArray();
+     if (part.Length == 0) break;
+     pk.Write(part);
+
+     raw = raw.Skip(part.Length).ToArray();
+ }
+
+ pk.Flush();
+
+ using var st    = new MemoryStream(stm.ToArray());
+ using var unpk  = new LZ4UncompressStream(st);
+ var       final = new MemoryStream();
+ while (true)
+ {
+     var buff = new byte[Random.Shared.Next(100, 100000)];
+     var read = unpk.Read(buff, 0, buff.Length);
+     if (read == 0) break;
+     
+     final.Write(buff, 0, read);
+     if (read < buff.Length) break;
+ }
+
+ var seq = final.ToArray().SequenceEqual(rawFiles["1024KB"]);
+
+ var ss2 = "";
+ var packed = rawFiles["1024KB"].AsSpan().PackLZ4();
+
+ var total  = 0;
+ var sw     = Stopwatch.StartNew();
+
+ for (var i = 0; i < 30000; i++)
+     total += rawFiles["__16KB"].AsSpan().PackLZ4().Length;
+
+ for (var i = 0; i < 500; i++)
+     total += packed.UnpackLZ4().Length;
+
+ Console.WriteLine(sw.ElapsedMilliseconds + " - " + total);
