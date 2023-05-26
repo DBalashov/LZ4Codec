@@ -47,7 +47,7 @@ internal partial class LZ4Service32 : LZ4ServiceBase
 
             if (dst_cpy > dst_COPYLENGTH)
             {
-                if (dst_cpy != dst_end) goto _output_error; // Error : not enough place for another match (min 4) + 5 literals
+                if (dst_cpy != dst_end) return -src_p; // Error : not enough place for another match (min 4) + 5 literals
                 src.Slice(src_p, length).CopyTo(dst.Slice(dst_p));
                 src_p += length;
                 break; // EOF
@@ -67,7 +67,7 @@ internal partial class LZ4Service32 : LZ4ServiceBase
             // get offset
             var dst_ref = dst_cpy - src.Peek2(src_p);
             src_p += 2;
-            if (dst_ref < 0) goto _output_error; // Error : offset outside destination buffer
+            if (dst_ref < 0) return -src_p; // Error : offset outside destination buffer
 
             // get matchlength
             if ((length = (token & ML_MASK)) == ML_MASK)
@@ -102,7 +102,7 @@ internal partial class LZ4Service32 : LZ4ServiceBase
 
             if (dst_cpy > dst_COPYLENGTH_STEPSIZE_4)
             {
-                if (dst_cpy > dst_LASTLITERALS) goto _output_error; // Error : last 5 bytes must be literals
+                if (dst_cpy > dst_LASTLITERALS) return -src_p; // Error : last 5 bytes must be literals
                 if (dst_p < dst_COPYLENGTH)
                 {
                     _i      =  dst.SecureCopy(dst_ref, dst_p, dst_COPYLENGTH);
@@ -123,9 +123,5 @@ internal partial class LZ4Service32 : LZ4ServiceBase
 
         // end of decoding
         return src_p;
-
-        // write overflow error detected
-    _output_error:
-        return -src_p;
     }
 }

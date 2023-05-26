@@ -18,6 +18,7 @@ using LZ4;
 var summary = BenchmarkRunner.Run<MainTest>();
 
 [SimpleJob(RuntimeMoniker.Net70, baseline: true)]
+//[SimpleJob(RuntimeMoniker.NativeAot70)]
 [WarmupCount(3)]
 [IterationCount(3)]
 [MemoryDiagnoser]
@@ -31,6 +32,7 @@ public class MainTest
     [Params(1, 16, 128, 512, 1024)]
     public int FileSize { get; set; }
 
+    //[Params(32, 64)]
     [Params(32, 64)]
     public int Bitness { get; set; }
 
@@ -72,13 +74,13 @@ public class MainTest
         {
             public IEnumerable<BenchmarkCase> GetExecutionOrder(ImmutableArray<BenchmarkCase> benchmarksCase, IEnumerable<BenchmarkLogicalGroupRule> order = null) =>
                 benchmarksCase.OrderBy(p => p.Descriptor.WorkloadMethod.Name)
-                              .ThenBy(p => (string) p.Parameters["FileName"])
-                              .ThenBy(p => (int) p.Parameters["Bitness"]);
+                              .ThenBy(p => (int) p.Parameters["Bitness"])
+                              .ThenBy(p => (int) p.Parameters["FileSize"]);
 
             public IEnumerable<BenchmarkCase> GetSummaryOrder(ImmutableArray<BenchmarkCase> benchmarksCase, Summary summary) =>
                 benchmarksCase.OrderBy(p => p.Descriptor.WorkloadMethod.Name)
-                              .ThenBy(p => (string) p.Parameters["FileName"])
-                              .ThenBy(p => (int) p.Parameters["Bitness"]);
+                              .ThenBy(p => (int) p.Parameters["Bitness"])
+                              .ThenBy(p => (int) p.Parameters["FileSize"]);
 
             public string GetHighlightGroupKey(BenchmarkCase benchmarkCase) => null;
 
@@ -119,10 +121,10 @@ public class MainTest
 
         public string GetValue(Summary summary, BenchmarkCase benchmarkCase, SummaryStyle style)
         {
-            var r     = summary[benchmarkCase].ResultStatistics;
-            var bytes = ((int) benchmarkCase.Parameters["FileSize"] / 1024.0);
-            var seconds   = r.Mean / 1_000_000_000;
-            return (bytes/seconds).ToString("F2", CultureInfo.InvariantCulture);
+            var r       = summary[benchmarkCase].ResultStatistics;
+            var bytes   = ((int) benchmarkCase.Parameters["FileSize"] / 1024.0);
+            var seconds = r.Mean / 1_000_000_000;
+            return (bytes / seconds).ToString("F2", CultureInfo.InvariantCulture);
         }
     }
 

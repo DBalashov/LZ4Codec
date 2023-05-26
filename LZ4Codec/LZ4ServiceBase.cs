@@ -25,26 +25,24 @@ internal abstract class LZ4ServiceBase
 
     protected const int HASH_LOG       = MEMORY_USAGE - 2;
     protected const int HASH_TABLESIZE = 1 << HASH_LOG;
-    protected const int HASH_ADJUST    = MINMATCH * 8 - HASH_LOG;
+    internal const  int HASH_ADJUST    = MINMATCH * 8 - HASH_LOG;
 
     protected const int HASH64K_LOG       = HASH_LOG + 1;
     protected const int HASH64K_TABLESIZE = 1 << HASH64K_LOG;
-    protected const int HASH64K_ADJUST    = MINMATCH * 8 - HASH64K_LOG;
+    internal const int HASH64K_ADJUST    = MINMATCH * 8 - HASH64K_LOG;
 
     protected const int LASTLITERALS = 5;
+    protected const int MINLENGTH    = MFLIMIT + 1;
+    protected const int MAXD_LOG     = 16;
 
-    protected const int MINLENGTH = MFLIMIT + 1;
-
-    protected const int MAXD_LOG = 16;
-
-    protected const int MAX_DISTANCE = (1 << MAXD_LOG) - 1;
-    protected const int ML_BITS      = 4;
-    protected const int ML_MASK      = (1 << ML_BITS)  - 1;
-    protected const int RUN_BITS     = 8               - ML_BITS;
-    protected const int RUN_MASK     = (1 << RUN_BITS) - 1;
+    internal const int MAX_DISTANCE = (1 << MAXD_LOG) - 1;
+    internal const int ML_BITS      = 4;
+    internal const  int ML_MASK      = (1 << ML_BITS)  - 1;
+    internal const  int RUN_BITS     = 8               - ML_BITS;
+    internal const  int RUN_MASK     = (1 << RUN_BITS) - 1;
     protected const int STEPSIZE_64  = 8;
 
-    protected const uint MULTIPLIER = 2654435761u;
+    internal const uint MULTIPLIER = 2654435761u;
 
     /// <summary>
     /// Decreasing this value will make the algorithm skip faster data segments considered "incompressible"
@@ -55,7 +53,7 @@ internal abstract class LZ4ServiceBase
     /// </summary>
     protected const int NOTCOMPRESSIBLE_DETECTIONLEVEL = 6;
 
-    protected const int SKIPSTRENGTH = NOTCOMPRESSIBLE_DETECTIONLEVEL > 2 ? NOTCOMPRESSIBLE_DETECTIONLEVEL : 2;
+    internal const int SKIPSTRENGTH = NOTCOMPRESSIBLE_DETECTIONLEVEL > 2 ? NOTCOMPRESSIBLE_DETECTIONLEVEL : 2;
 
     protected static readonly int[] DECODER_TABLE_32 = {0, 3, 2, 3, 0, 0, 0, 0};
 

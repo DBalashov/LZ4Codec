@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace LZ4;
@@ -133,4 +134,90 @@ static class Extenders
     }
 
     #endregion
+
+    #region findMatch
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    public static unsafe bool findMatch(this Span<byte> src,       Span<int> hash_table, uint    h_fwd, int src_mflimit,
+                                        ref  int        src_p_fwd, ref int   src_p,      ref int src_base,
+                                        out  int        src_ref)
+    {
+        src_ref = 0;
+        var findMatchAttempts = (1 << LZ4ServiceBase.SKIPSTRENGTH) + 3;
+        fixed (int* ptrHash = hash_table)
+            do
+            {
+                var h    = h_fwd;
+                var step = findMatchAttempts++ >> LZ4ServiceBase.SKIPSTRENGTH;
+                src_p     = src_p_fwd;
+                src_p_fwd = src_p + step;
+
+                if (src_p_fwd > src_mflimit) return false;
+
+                h_fwd   = (src.Peek4(src_p_fwd) * LZ4ServiceBase.MULTIPLIER) >> LZ4ServiceBase.HASH_ADJUST;
+                src_ref = src_base + hash_table[(int) h];
+
+                *(ptrHash + (int) h) = (ushort) (src_p - src_base);
+            } while ((src_ref < src_p - LZ4ServiceBase.MAX_DISTANCE) || !src.Equal4(src_ref, src_p));
+
+        return true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    public static unsafe bool findMatch(this Span<byte> src,       Span<ushort> hash_table, uint    h_fwd, int src_mflimit,
+                                        ref  int        src_p_fwd, ref int      src_p,      ref int src_base,
+                                        out  int        src_ref)
+    {
+        src_ref = 0;
+        var findMatchAttempts = (1 << LZ4ServiceBase.SKIPSTRENGTH) + 3;
+        fixed (ushort* ptrHash = hash_table)
+            do
+            {
+                var h    = h_fwd;
+                var step = findMatchAttempts++ >> LZ4ServiceBase.SKIPSTRENGTH;
+                src_p     = src_p_fwd;
+                src_p_fwd = src_p + step;
+
+                if (src_p_fwd > src_mflimit) return false;
+
+                h_fwd   = (src.Peek4(src_p_fwd) * LZ4ServiceBase.MULTIPLIER) >> LZ4ServiceBase.HASH64K_ADJUST;
+                src_ref = src_base + *(ptrHash + (int) h);
+
+                *(ptrHash + (int) h) = (ushort) (src_p - src_base);
+            } while (!src.Equal4(src_ref, src_p));
+
+        return true;
+    }
+
+    #endregion
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    public static unsafe bool lastLiterals(this Span<byte> src, Span<byte> dst, int src_anchor, int src_end, int dst_end, ref int dst_p)
+    {
+        var lastRun = src_end - src_anchor;
+        if (dst_p + lastRun + 1 + (lastRun - LZ4ServiceBase.RUN_MASK + 0xFF) / 0xFF > dst_end) return false; // compressed length >= uncompressed length
+
+        fixed (byte* ptrDst = dst)
+        {
+            if (lastRun >= LZ4ServiceBase.RUN_MASK)
+            {
+                *(ptrDst + (dst_p++)) = LZ4ServiceBase.RUN_MASK << LZ4ServiceBase.ML_BITS;
+
+                lastRun -= LZ4ServiceBase.RUN_MASK;
+
+                for (; lastRun > 254; lastRun -= 0xFF)
+                    *(ptrDst + (dst_p++)) = 0xFF;
+
+                *(ptrDst + (dst_p++)) = (byte) lastRun;
+            }
+            else
+            {
+                *(ptrDst + (dst_p++)) = (byte) (lastRun << LZ4ServiceBase.ML_BITS);
+            }
+        }
+
+        src.Slice(src_anchor, src_end - src_anchor).CopyTo(dst.Slice(dst_p));
+        dst_p += src_end - src_anchor;
+        return true;
+    }
 }

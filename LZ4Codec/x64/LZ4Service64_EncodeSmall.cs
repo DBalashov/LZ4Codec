@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 
 // ReSharper disable UselessBinaryOperation
 
@@ -14,8 +15,8 @@ partial class LZ4Service64
         var src_p       = 0;
         var src_anchor  = src_p;
         var src_base    = src_p;
-        var src_end     = src_p   + src.Length;
-        var src_mflimit = src_end - MFLIMIT;
+        var src_end     = src.Length;
+        var src_mflimit = src.Length - MFLIMIT;
 
         var dst_p   = 0;
         var dst_end = dst_p + dst.Length;
@@ -40,25 +41,11 @@ partial class LZ4Service64
         // Main Loop
         while (true)
         {
-            var findMatchAttempts = (1 << SKIPSTRENGTH) + 3;
-            var src_p_fwd         = src_p;
-            int src_ref;
+            var src_p_fwd = src_p;
 
-            // Find a match
-            uint h;
-            do
-            {
-                h = h_fwd;
-                var step = findMatchAttempts++ >> SKIPSTRENGTH;
-                src_p     = src_p_fwd;
-                src_p_fwd = src_p + step;
-
-                if (src_p_fwd > src_mflimit) goto _last_literals;
-
-                h_fwd               = (src.Peek4(src_p_fwd) * MULTIPLIER) >> HASH64K_ADJUST;
-                src_ref             = src_base + hash_table[(int) h];
-                hash_table[(int) h] = (ushort) (src_p - src_base);
-            } while (!src.Equal4(src_ref, src_p));
+            if (!src.findMatch(hash_table, h_fwd, src_mflimit,
+                               ref src_p_fwd, ref src_p, ref src_base,
+                               out var src_ref)) goto _last_literals;
 
             // Catch up
             while (src_p > src_anchor && src_ref > 0 && src[src_p - 1] == src[src_ref - 1])
@@ -73,10 +60,9 @@ partial class LZ4Service64
 
             if (dst_p + length + (length >> 8) > dst_LASTLITERALS_3) return 0; // compressed length >= uncompressed length
 
-            int len;
             if (length >= RUN_MASK)
             {
-                len            = length - RUN_MASK;
+                var len = length - RUN_MASK;
                 dst[dst_token] = RUN_MASK << ML_BITS;
                 if (len > 254)
                 {
@@ -91,8 +77,8 @@ partial class LZ4Service64
                     dst_p += length;
                     goto _next_match;
                 }
-                else
-                    dst[dst_p++] = (byte) len;
+
+                dst[dst_p++] = (byte) len;
             }
             else
             {
@@ -100,7 +86,7 @@ partial class LZ4Service64
             }
 
             // Copy Literals
-            if (length > 0) /*?*/
+            if (length > 0)
             {
                 var _i = dst_p + length;
                 src.WildCopy(src_anchor, dst, dst_p, _i);
@@ -146,33 +132,31 @@ partial class LZ4Service64
             if (src_p < src_LASTLITERALS && src[src_ref] == src[src_p]) src_p++;
 
         _endCount:
-
             // Encode MatchLength
-            len = (src_p - src_anchor);
+            var lenDiff = src_p - src_anchor;
+            if (dst_p + (lenDiff >> 8) > dst_LASTLITERALS_1) return 0; // compressed length >= uncompressed length
 
-            if (dst_p + (len >> 8) > dst_LASTLITERALS_1) return 0; // compressed length >= uncompressed length
-
-            if (len >= ML_MASK)
+            if (lenDiff >= ML_MASK)
             {
                 dst[dst_token] += ML_MASK;
-                len            -= ML_MASK;
-                for (; len > 509; len -= 510)
+                lenDiff        -= ML_MASK;
+                for (; lenDiff > 509; lenDiff -= 510)
                 {
-                    dst[dst_p++] = 255;
-                    dst[dst_p++] = 255;
+                    dst[dst_p++] = 0xFF;
+                    dst[dst_p++] = 0xFF;
                 }
 
-                if (len > 254)
+                if (lenDiff > 254)
                 {
-                    len          -= 255;
-                    dst[dst_p++] =  255;
+                    lenDiff      -= 0xFF;
+                    dst[dst_p++] =  0xFF;
                 }
 
-                dst[dst_p++] = (byte) len;
+                dst[dst_p++] = (byte) lenDiff;
             }
             else
             {
-                dst[dst_token] += (byte) len;
+                dst[dst_token] += (byte) lenDiff;
             }
 
             // Test end of chunk
@@ -186,9 +170,9 @@ partial class LZ4Service64
             hash_table[(int) ((src.Peek4(src_p - 2) * MULTIPLIER) >> HASH64K_ADJUST)] = (ushort) (src_p - 2 - src_base);
 
             // Test next position
-            h                   = (src.Peek4(src_p) * MULTIPLIER) >> HASH64K_ADJUST;
-            src_ref             = src_base + hash_table[(int) h];
-            hash_table[(int) h] = (ushort) (src_p - src_base);
+            var ha = (src.Peek4(src_p) * MULTIPLIER) >> HASH64K_ADJUST;
+            src_ref              = src_base + hash_table[(int) ha];
+            hash_table[(int) ha] = (ushort) (src_p - src_base);
 
             if (src.Equal4(src_ref, src_p))
             {
@@ -203,22 +187,6 @@ partial class LZ4Service64
         }
 
     _last_literals:
-        {
-            var lastRun = (src_end                        - src_anchor);
-            if (dst_p + lastRun + 1 + (lastRun - RUN_MASK + 255) / 255 > dst_end) return 0; // compressed length >= uncompressed length
-            if (lastRun >= RUN_MASK)
-            {
-                dst[dst_p++] =  RUN_MASK << ML_BITS;
-                lastRun      -= RUN_MASK;
-                for (; lastRun > 254; lastRun -= 255) dst[dst_p++] = 255;
-                dst[dst_p++] = (byte) lastRun;
-            }
-            else dst[dst_p++] = (byte) (lastRun << ML_BITS);
-
-            src.Slice(src_anchor, src_end - src_anchor).CopyTo(dst.Slice(dst_p));
-            dst_p += src_end - src_anchor;
-        }
-
-        return dst_p;
+        return !src.lastLiterals(dst, src_anchor, src_end, dst_end, ref dst_p) ? 0 : dst_p;
     }
 }

@@ -1,5 +1,4 @@
 using System;
-using System.Runtime.InteropServices;
 
 // ReSharper disable UselessBinaryOperation
 
@@ -7,7 +6,7 @@ namespace LZ4;
 
 partial class LZ4Service32
 {
-    protected override unsafe int encode(Span<int> hash_table, Span<byte> src, Span<byte> dst)
+    protected override int encode(Span<int> hash_table, Span<byte> src, Span<byte> dst)
     {
         hash_table.Fill(0);
 
@@ -37,25 +36,11 @@ partial class LZ4Service32
 
         while (true)
         {
-            var findMatchAttempts = (1 << SKIPSTRENGTH) + 3;
-            var src_p_fwd         = src_p;
-            int src_ref;
+            var src_p_fwd = src_p;
 
-            // Find a match
-            uint h;
-            do
-            {
-                h = h_fwd;
-                var step = findMatchAttempts++ >> SKIPSTRENGTH;
-                src_p     = src_p_fwd;
-                src_p_fwd = src_p + step;
-
-                if (src_p_fwd > src_mflimit) goto _last_literals;
-
-                h_fwd               = (src.Peek4(src_p_fwd) * MULTIPLIER) >> HASH_ADJUST;
-                src_ref             = src_base + hash_table[(int) h];
-                hash_table[(int) h] = src_p    - src_base;
-            } while ((src_ref < src_p - MAX_DISTANCE) || !src.Equal4(src_ref, src_p));
+            if (!src.findMatch(hash_table, h_fwd, src_mflimit,
+                               ref src_p_fwd, ref src_p, ref src_base,
+                               out var src_ref)) goto _last_literals;
 
             // Catch up
             while (src_p > src_anchor && src_ref > 0 && src[src_p - 1] == src[src_ref - 1])
@@ -87,10 +72,8 @@ partial class LZ4Service32
                     dst_p += length;
                     goto _next_match;
                 }
-                else
-                {
-                    dst[dst_p++] = (byte) len;
-                }
+
+                dst[dst_p++] = (byte) len;
             }
             else
             {
@@ -178,7 +161,7 @@ partial class LZ4Service32
 
             // Test next position
 
-            h                   = (src.Peek4(src_p) * MULTIPLIER) >> HASH_ADJUST;
+            var h = (src.Peek4(src_p) * MULTIPLIER) >> HASH_ADJUST;
             src_ref             = src_base + hash_table[(int) h];
             hash_table[(int) h] = src_p    - src_base;
 
@@ -195,25 +178,6 @@ partial class LZ4Service32
         }
 
     _last_literals:
-        // Encode Last Literals
-        {
-            var lastRun = src_end - src_anchor;
-            if (dst_p + lastRun + 1 + ((lastRun + 255 - RUN_MASK) / 255) > dst_end) return 0;
-
-            if (lastRun >= RUN_MASK)
-            {
-                dst[dst_p++] =  RUN_MASK << ML_BITS;
-                lastRun      -= RUN_MASK;
-                for (; lastRun > 254; lastRun -= 255) dst[dst_p++] = 255;
-                dst[dst_p++] = (byte) lastRun;
-            }
-            else dst[dst_p++] = (byte) (lastRun << ML_BITS);
-
-            src.Slice(src_anchor, src_end - src_anchor).CopyTo(dst.Slice(dst_p));
-            dst_p += src_end - src_anchor;
-        }
-
-        // End
-        return dst_p;
+        return !src.lastLiterals(dst, src_anchor, src_end, dst_end, ref dst_p) ? 0 : dst_p;
     }
 }

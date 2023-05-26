@@ -32,7 +32,7 @@ internal partial class LZ4Service64 : LZ4ServiceBase
             int length;
 
             // get runlength
-            uint token = src[src_p++];
+            var token = src[src_p++];
             if ((length = (byte) (token >> ML_BITS)) == RUN_MASK)
             {
                 int len;
@@ -49,14 +49,14 @@ internal partial class LZ4Service64 : LZ4ServiceBase
 
             if (dst_cpy > dst_COPYLENGTH)
             {
-                if (dst_cpy != dst_end) goto _output_error; // Error : not enough place for another match (min 4) + 5 literals
+                if (dst_cpy != dst_end) return -src_p; // Error : not enough place for another match (min 4) + 5 literals
                 src.Slice(src_p, length).CopyTo(dst.Slice(dst_p));
                 src_p += length;
                 break; // EOF
             }
 
             int _i;
-            if (dst_p < dst_cpy) /*?*/
+            if (dst_p < dst_cpy)
             {
                 _i    =  src.WildCopy(src_p, dst, dst_p, dst_cpy);
                 src_p += _i;
@@ -69,7 +69,7 @@ internal partial class LZ4Service64 : LZ4ServiceBase
             // get offset
             var dst_ref = dst_cpy - src.Peek2(src_p);
             src_p += 2;
-            if (dst_ref < 0) goto _output_error; // Error : offset outside destination buffer
+            if (dst_ref < 0) return -src_p; // Error : offset outside destination buffer
 
             // get matchlength
             if ((length = (byte) (token & ML_MASK)) == ML_MASK)
@@ -87,6 +87,7 @@ internal partial class LZ4Service64 : LZ4ServiceBase
                 dst[dst_p + 1] =  dst[dst_ref + 1];
                 dst[dst_p + 2] =  dst[dst_ref + 2];
                 dst[dst_p + 3] =  dst[dst_ref + 3];
+                
                 dst_p          += 4;
                 dst_ref        += 4;
                 dst_ref        -= DECODER_TABLE_32[dst_p - dst_ref];
@@ -105,7 +106,7 @@ internal partial class LZ4Service64 : LZ4ServiceBase
 
             if (dst_cpy > dst_COPYLENGTH_STEPSIZE_4)
             {
-                if (dst_cpy > dst_LASTLITERALS) goto _output_error; // Error : last 5 bytes must be literals
+                if (dst_cpy > dst_LASTLITERALS) return -src_p;; // Error : last 5 bytes must be literals
                 if (dst_p < dst_COPYLENGTH)
                 {
                     _i      =  dst.SecureCopy(dst_ref, dst_p, dst_COPYLENGTH);
@@ -125,9 +126,5 @@ internal partial class LZ4Service64 : LZ4ServiceBase
         }
 
         return src_p;
-
-    _output_error:
-        // write overflow error detected
-        return -src_p;
     }
 }
