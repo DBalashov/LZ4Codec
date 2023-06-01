@@ -4,6 +4,13 @@ using System.Runtime.InteropServices;
 
 namespace LZ4;
 
+public static class ExtendersPublic
+{
+    public static (int UnpackedLength, int PackedLength) LZ4GetLengths(this Span<byte> span) =>
+        (span.LZ4UnpackedLength(),
+         span.LZ4PackedLength());
+}
+
 static class Extenders
 {
     internal static int LZ4UnpackedLength(this Span<byte> span) =>
