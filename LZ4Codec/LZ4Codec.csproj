@@ -3,11 +3,12 @@
     <PropertyGroup>
         <TargetFramework>net6.0</TargetFramework>
         <LangVersion>11</LangVersion>
-
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        
         <AssemblyName>LZ4Codec</AssemblyName>
         <PackageId>LZ4Codec</PackageId>
         <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
-        <Version>2023.5.26.0</Version>
+        <Version>2023.5.27.0</Version>
         <AssemblyVersion>$(Version)</AssemblyVersion>
         <FileVersion>$(Version)</FileVersion>
         <requireLicenseAcceptance>false</requireLicenseAcceptance>
@@ -18,13 +19,4 @@
         <PackageTags>C#, lz4, pack</PackageTags>
     </PropertyGroup>
 
-    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-      <DefineConstants>TRACE</DefineConstants>
-      <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    </PropertyGroup>
-
-    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-      <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    </PropertyGroup>
-    
 </Project>

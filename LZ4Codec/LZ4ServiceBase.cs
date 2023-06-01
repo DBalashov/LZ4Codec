@@ -29,14 +29,14 @@ internal abstract class LZ4ServiceBase
 
     protected const int HASH64K_LOG       = HASH_LOG + 1;
     protected const int HASH64K_TABLESIZE = 1 << HASH64K_LOG;
-    internal const int HASH64K_ADJUST    = MINMATCH * 8 - HASH64K_LOG;
+    internal const  int HASH64K_ADJUST    = MINMATCH * 8 - HASH64K_LOG;
 
     protected const int LASTLITERALS = 5;
     protected const int MINLENGTH    = MFLIMIT + 1;
     protected const int MAXD_LOG     = 16;
 
-    internal const int MAX_DISTANCE = (1 << MAXD_LOG) - 1;
-    internal const int ML_BITS      = 4;
+    internal const  int MAX_DISTANCE = (1 << MAXD_LOG) - 1;
+    internal const  int ML_BITS      = 4;
     internal const  int ML_MASK      = (1 << ML_BITS)  - 1;
     internal const  int RUN_BITS     = 8               - ML_BITS;
     internal const  int RUN_MASK     = (1 << RUN_BITS) - 1;
@@ -72,6 +72,7 @@ internal abstract class LZ4ServiceBase
 
             var unpackedLength = inputBuffer.LZ4UnpackedLength();
             var packedLength   = inputBuffer.LZ4PackedLength();
+            if (unpackedLength == 0 && packedLength == 0) break;
 
             if (packedLength < 0 || unpackedLength < 0)
                 throw new InvalidOperationException($"PackedLength or UnpackedLength has invalid value ({packedLength} / {unpackedLength})");
