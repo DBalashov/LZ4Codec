@@ -19,7 +19,7 @@ internal abstract class LZ4ServiceBase
     protected const int MEMORY_USAGE = 14;
 
     protected const int COPYLENGTH   = 8;
-    protected const int MINMATCH     = 4;
+    internal const int MINMATCH     = 4;
     protected const int MFLIMIT      = COPYLENGTH + MINMATCH;
     internal const  int LZ4_64KLIMIT = (1 << 16)  + (MFLIMIT - 1);
 
@@ -40,7 +40,7 @@ internal abstract class LZ4ServiceBase
     internal const  int ML_MASK      = (1 << ML_BITS)  - 1;
     internal const  int RUN_BITS     = 8               - ML_BITS;
     internal const  int RUN_MASK     = (1 << RUN_BITS) - 1;
-    protected const int STEPSIZE_64  = 8;
+    internal const int STEPSIZE_64  = 8;
 
     internal const uint MULTIPLIER = 2654435761u;
 

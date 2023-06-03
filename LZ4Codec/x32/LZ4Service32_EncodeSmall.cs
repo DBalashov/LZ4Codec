@@ -65,8 +65,8 @@ partial class LZ4Service32
                 {
                     do
                     {
-                        dst[dst_p++] =  255;
-                        len          -= 255;
+                        dst[dst_p++] =  0xFF;
+                        len          -= 0xFF;
                     } while (len > 254);
 
                     dst[dst_p++] = (byte) len;
@@ -135,14 +135,14 @@ partial class LZ4Service32
                 len            -= ML_MASK;
                 for (; len > 509; len -= 510)
                 {
-                    dst[dst_p++] = 255;
-                    dst[dst_p++] = 255;
+                    dst[dst_p++] = 0xFF;
+                    dst[dst_p++] = 0xFF;
                 }
 
                 if (len > 254)
                 {
-                    len          -= 255;
-                    dst[dst_p++] =  255;
+                    len          -= 0xFF;
+                    dst[dst_p++] =  0xFF;
                 }
 
                 dst[dst_p++] = (byte) len;

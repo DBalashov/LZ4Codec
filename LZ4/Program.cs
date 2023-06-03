@@ -18,9 +18,8 @@ using LZ4;
 var summary = BenchmarkRunner.Run<MainTest>();
 
 [SimpleJob(RuntimeMoniker.Net70, baseline: true)]
-//[SimpleJob(RuntimeMoniker.NativeAot70)]
-[WarmupCount(3)]
-[IterationCount(3)]
+[WarmupCount(1)]
+[IterationCount(1)]
 [MemoryDiagnoser]
 [Config(typeof(Config))]
 public class MainTest
@@ -30,10 +29,11 @@ public class MainTest
     Dictionary<string, byte[]> packedFiles;
 
     [Params(1, 16, 128, 512, 1024)]
+    //[Params(1, 16, 128, 512, 1024)]
     public int FileSize { get; set; }
 
-    //[Params(32, 64)]
     [Params(32, 64)]
+    //[Params(64)]
     public int Bitness { get; set; }
 
     [GlobalSetup]

@@ -48,7 +48,7 @@ public abstract class BaseTest
 
             var unpacked = service.Decode(packed);
             Assert.IsTrue(unpacked.Length > 0);
-            Assert.True(unpacked.SequenceEqual(copyOfOriginal));
+            Assert.True(unpacked.SequenceEqual(copyOfOriginal), "unpacked.SequenceEqual(copyOfOriginal): " + data.Key);
         }
     }
 

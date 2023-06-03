@@ -8,7 +8,7 @@ internal partial class LZ4Service64 : LZ4ServiceBase
 {
     static readonly int[] DECODER_TABLE_64 = {0, 0, 0, -1, 0, 1, 2, 3};
 
-    static readonly int[] DEBRUIJN_TABLE_64 =
+    internal static readonly int[] DEBRUIJN_TABLE_64 =
     {
         0, 0, 0, 0, 0, 1, 1, 2, 0, 3, 1, 3, 1, 4, 2, 7,
         0, 2, 3, 6, 1, 5, 3, 5, 1, 3, 4, 4, 2, 5, 6, 7,
@@ -36,7 +36,7 @@ internal partial class LZ4Service64 : LZ4ServiceBase
             if ((length = (byte) (token >> ML_BITS)) == RUN_MASK)
             {
                 int len;
-                for (; (len = src[src_p++]) == 255; length += 255)
+                for (; (len = src[src_p++]) == 0xFF; length += 0xFF)
                 {
                     /* do nothing */
                 }
@@ -74,7 +74,7 @@ internal partial class LZ4Service64 : LZ4ServiceBase
             // get matchlength
             if ((length = (byte) (token & ML_MASK)) == ML_MASK)
             {
-                for (; src[src_p] == 255; length += 255) src_p++;
+                for (; src[src_p] == 0xFF; length += 0xFF) src_p++;
                 length += src[src_p++];
             }
 

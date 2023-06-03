@@ -34,7 +34,7 @@ internal partial class LZ4Service32 : LZ4ServiceBase
             if ((length = (token >> ML_BITS)) == RUN_MASK)
             {
                 int len;
-                for (; (len = src[src_p++]) == 255; length += 255)
+                for (; (len = src[src_p++]) == 0xFF; length += 0xFF)
                 {
                     /* do nothing */
                 }
@@ -72,7 +72,7 @@ internal partial class LZ4Service32 : LZ4ServiceBase
             // get matchlength
             if ((length = (token & ML_MASK)) == ML_MASK)
             {
-                for (; src[src_p] == 255; length += 255) src_p++;
+                for (; src[src_p] == 0xFF; length += 0xFF) src_p++;
                 length += src[src_p++];
             }
 

@@ -198,6 +198,8 @@ static class Extenders
 
     #endregion
 
+    #region lastLiterals
+
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static unsafe bool lastLiterals(this Span<byte> src, Span<byte> dst, int src_anchor, int src_end, int dst_end, ref int dst_p)
     {
@@ -227,4 +229,177 @@ static class Extenders
         dst_p += src_end - src_anchor;
         return true;
     }
+
+    #endregion
+
+    #region testNextPosition
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    public static bool testNextPosition(this Span<byte> src, int     src_p,     int     src_base, ref int   src_ref,
+                                        Span<byte>      dst, ref int dst_token, ref int dst_p,    Span<int> hash_table)
+    {
+        var h = (src.Peek4(src_p) * LZ4ServiceBase.MULTIPLIER) >> LZ4ServiceBase.HASH_ADJUST;
+        src_ref             = src_base + hash_table[(int) h];
+        hash_table[(int) h] = (src_p - src_base);
+
+        if ((src_ref > src_p - (LZ4ServiceBase.MAX_DISTANCE + 1)) && src.Equal4(src_ref, src_p))
+        {
+            dst_token      = dst_p++;
+            dst[dst_token] = 0;
+            return false;
+        }
+
+        return true;
+    }
+
+    #endregion
+
+    #region encodeLiteralLength
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    public static bool encodeLiteralLength(this Span<byte> src, int     src_p, int     src_anchor, int dst_LASTLITERALS_3,
+                                           Span<byte>      dst, ref int dst_p, out int dst_token)
+    {
+        var length = src_p - src_anchor;
+        dst_token = dst_p++;
+
+        if (dst_p + length + (length >> 8) > dst_LASTLITERALS_3) return false; // compressed length >= uncompressed length
+
+        if (length >= LZ4ServiceBase.RUN_MASK)
+        {
+            var len = length - LZ4ServiceBase.RUN_MASK;
+            dst[dst_token] = (LZ4ServiceBase.RUN_MASK << LZ4ServiceBase.ML_BITS);
+            if (len > 254)
+            {
+                do
+                {
+                    dst[dst_p++] =  0xFF;
+                    len          -= 0xFF;
+                } while (len > 254);
+
+                dst[dst_p++] = (byte) len;
+                src.Slice(src_anchor, length).CopyTo(dst.Slice(dst_p));
+                dst_p += length;
+                return true;
+            }
+
+            dst[dst_p++] = (byte) len;
+        }
+        else
+        {
+            dst[dst_token] = (byte) (length << LZ4ServiceBase.ML_BITS);
+        }
+
+        // Copy Literals
+        if (length > 0)
+        {
+            var _i = dst_p + length;
+            src.WildCopy(src_anchor, dst, dst_p, _i);
+            dst_p = _i;
+        }
+
+        return true;
+    }
+
+    #endregion
+
+    #region nextMatch64
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    public static void nextMatch64(this Span<byte> src,              ref int src_p,                       ref int src_ref,            ref int src_anchor,
+                                   int             src_LASTLITERALS, int     src_LASTLITERALS_STEPSIZE_1, int     src_LASTLITERALS_1, int     src_LASTLITERALS_3,
+                                   Span<byte>      dst,              ref int dst_p)
+    {
+        // Encode Offset
+        dst.Poke2(dst_p, (ushort) (src_p - src_ref));
+        dst_p += 2;
+
+        // Start Counting
+        src_p      += LZ4ServiceBase.MINMATCH;
+        src_ref    += LZ4ServiceBase.MINMATCH; // MinMatch already verified
+        src_anchor =  src_p;
+
+        while (src_p < src_LASTLITERALS_STEPSIZE_1)
+        {
+            var diff = (long) src.Xor8(src_ref, src_p);
+            if (diff == 0)
+            {
+                src_p   += LZ4ServiceBase.STEPSIZE_64;
+                src_ref += LZ4ServiceBase.STEPSIZE_64;
+                continue;
+            }
+
+            src_p += LZ4Service64.DEBRUIJN_TABLE_64[((ulong) ((diff) & -(diff)) * 0x0218A392CDABBD3FL) >> 58];
+            return;
+        }
+
+        if ((src_p < src_LASTLITERALS_3) && src.Equal4(src_ref, src_p))
+        {
+            src_p   += 4;
+            src_ref += 4;
+        }
+
+        if ((src_p < src_LASTLITERALS_1) && src.Equal2(src_ref, src_p))
+        {
+            src_p   += 2;
+            src_ref += 2;
+        }
+
+        if (src_p < src_LASTLITERALS && src[src_ref] == src[src_p]) src_p++;
+    }
+
+    #endregion
+
+    #region encodeMatchLength
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    public static EncodeMatchLengthResult encodeMatchLength(this Span<byte> dst,
+                                                            int             src_p, int src_mflimit, ref int src_anchor,
+                                                            ref int         dst_p, int dst_token,   int     dst_LASTLITERALS_1)
+    {
+        var lenDiff = src_p - src_anchor;
+
+        if (dst_p + (lenDiff >> 8) > dst_LASTLITERALS_1) return EncodeMatchLengthResult.Failed; // compressed length >= uncompressed length
+
+        if (lenDiff >= LZ4ServiceBase.ML_MASK)
+        {
+            dst[dst_token] += LZ4ServiceBase.ML_MASK;
+            lenDiff        -= LZ4ServiceBase.ML_MASK;
+            for (; lenDiff > 509; lenDiff -= 510)
+            {
+                dst[dst_p++] = 0xFF;
+                dst[dst_p++] = 0xFF;
+            }
+
+            if (lenDiff > 254)
+            {
+                lenDiff      -= 0xFF;
+                dst[dst_p++] =  0xFF;
+            }
+
+            dst[dst_p++] = (byte) lenDiff;
+        }
+        else
+        {
+            dst[dst_token] += (byte) lenDiff;
+        }
+
+        // Test end of chunk
+        if (src_p > src_mflimit)
+        {
+            src_anchor = src_p;
+            return EncodeMatchLengthResult.Break;
+        }
+
+        return EncodeMatchLengthResult.Continue;
+    }
+
+    #endregion
+}
+
+internal enum EncodeMatchLengthResult
+{
+    Failed,
+    Break,
+    Continue
 }

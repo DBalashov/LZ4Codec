@@ -63,8 +63,8 @@ partial class LZ4Service32
                 {
                     do
                     {
-                        dst[dst_p++] =  255;
-                        len          -= 255;
+                        dst[dst_p++] =  0xFF;
+                        len          -= 0xFF;
                     } while (len > 254);
 
                     dst[dst_p++] = (byte) len;
@@ -132,14 +132,14 @@ partial class LZ4Service32
                 length         -= ML_MASK;
                 for (; length > 509; length -= 510)
                 {
-                    dst[dst_p++] = 255;
-                    dst[dst_p++] = 255;
+                    dst[dst_p++] = 0xFF;
+                    dst[dst_p++] = 0xFF;
                 }
 
                 if (length > 254)
                 {
-                    length       -= 255;
-                    dst[dst_p++] =  255;
+                    length       -= 0xFF;
+                    dst[dst_p++] =  0xFF;
                 }
 
                 dst[dst_p++] = (byte) length;
@@ -159,18 +159,7 @@ partial class LZ4Service32
             // Fill table
             hash_table[(int) ((src.Peek4(src_p - 2) * MULTIPLIER) >> HASH_ADJUST)] = src_p - 2 - src_base;
 
-            // Test next position
-
-            var h = (src.Peek4(src_p) * MULTIPLIER) >> HASH_ADJUST;
-            src_ref             = src_base + hash_table[(int) h];
-            hash_table[(int) h] = src_p    - src_base;
-
-            if ((src_ref > src_p - (MAX_DISTANCE + 1)) && src.Equal4(src_ref, src_p))
-            {
-                dst_token      = dst_p++;
-                dst[dst_token] = 0;
-                goto _next_match;
-            }
+            if (!src.testNextPosition(src_p, src_base, ref src_ref, dst, ref dst_token, ref dst_p, hash_table)) goto _next_match;
 
             // Prepare next loop
             src_anchor = src_p++;
