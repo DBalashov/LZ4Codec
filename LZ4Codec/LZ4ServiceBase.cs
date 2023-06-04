@@ -1,6 +1,7 @@
 using System;
 using System.Buffers;
 using System.IO;
+using LZ4.Helpers;
 
 namespace LZ4;
 
@@ -33,9 +34,7 @@ internal abstract class LZ4ServiceBase
 
     protected const int LASTLITERALS = 5;
     protected const int MINLENGTH    = MFLIMIT + 1;
-    protected const int MAXD_LOG     = 16;
-
-    internal const  int MAX_DISTANCE = (1 << MAXD_LOG) - 1;
+    
     internal const  int ML_BITS      = 4;
     internal const  int ML_MASK      = (1 << ML_BITS)  - 1;
     internal const  int RUN_BITS     = 8               - ML_BITS;
@@ -43,20 +42,7 @@ internal abstract class LZ4ServiceBase
     internal const int STEPSIZE_64  = 8;
 
     internal const uint MULTIPLIER = 2654435761u;
-
-    /// <summary>
-    /// Decreasing this value will make the algorithm skip faster data segments considered "incompressible"
-    /// This may decrease compression ratio dramatically, but will be faster on incompressible data
-    /// Increasing this value will make the algorithm search more before declaring a segment "incompressible"
-    /// This could improve compression a bit, but will be slower on incompressible data
-    /// The default value (6) is recommended
-    /// </summary>
-    protected const int NOTCOMPRESSIBLE_DETECTIONLEVEL = 6;
-
-    internal const int SKIPSTRENGTH = NOTCOMPRESSIBLE_DETECTIONLEVEL > 2 ? NOTCOMPRESSIBLE_DETECTIONLEVEL : 2;
-
-    protected static readonly int[] DECODER_TABLE_32 = {0, 3, 2, 3, 0, 0, 0, 0};
-
+    
     protected abstract int encode(Span<int>         hash_table, Span<byte> src, Span<byte> dst);
     protected abstract int encodeSmall(Span<ushort> hash_table, Span<byte> src, Span<byte> dst);
     protected abstract int decode(Span<byte>        src,        Span<byte> dst);

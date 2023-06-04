@@ -1,4 +1,5 @@
 using System;
+using LZ4.Helpers;
 
 // ReSharper disable UselessBinaryOperation
 
@@ -20,12 +21,7 @@ partial class LZ4Service32
         var dst_p   = 0;
         var dst_end = dst_p + dst.Length;
 
-        var src_LASTLITERALS   = src_end          - LASTLITERALS;
-        var src_LASTLITERALS_1 = src_LASTLITERALS - 1;
-
-        var src_LASTLITERALS_STEPSIZE_1 = src_LASTLITERALS - (STEPSIZE_32 - 1);
-        var dst_LASTLITERALS_1          = dst_end          - (1           + LASTLITERALS);
-        var dst_LASTLITERALS_3          = dst_end          - (2           + 1 + LASTLITERALS);
+        var ll = new LastLiteralsEncode(LASTLITERALS, STEPSIZE_32, src_end, dst_end);
 
         // Init
         if (src.Length < MINLENGTH)
@@ -39,7 +35,7 @@ partial class LZ4Service32
         while (true)
         {
             var src_p_fwd = src_p;
-            if (!src.findMatch(hash_table, h_fwd, src_mflimit,
+            if (!src.FindMatch(hash_table, h_fwd, src_mflimit,
                                ref src_p_fwd, ref src_p, ref src_base,
                                out var src_ref)) goto _last_literals;
 
@@ -50,114 +46,14 @@ partial class LZ4Service32
                 src_ref--;
             }
 
-            // Encode Literal length
-            var length    = src_p - src_anchor;
-            var dst_token = dst_p++;
-
-            if (dst_p + length + (length >> 8) > dst_LASTLITERALS_3) return 0; // compressed length >= uncompressed length
-
-            int len;
-            if (length >= RUN_MASK)
-            {
-                len            = length - RUN_MASK;
-                dst[dst_token] = RUN_MASK << ML_BITS;
-                if (len > 254)
-                {
-                    do
-                    {
-                        dst[dst_p++] =  0xFF;
-                        len          -= 0xFF;
-                    } while (len > 254);
-
-                    dst[dst_p++] = (byte) len;
-
-                    src.Slice(src_anchor, length).CopyTo(dst.Slice(dst_p));
-                    dst_p += length;
-                    goto _next_match;
-                }
-
-                dst[dst_p++] = (byte) len;
-            }
-            else
-            {
-                dst[dst_token] = (byte) (length << ML_BITS);
-            }
-
-            // Copy Literals
-            if (length > 0)
-            {
-                var _i = dst_p + length;
-                src.WildCopy(src_anchor, dst, dst_p, _i);
-                dst_p = _i;
-            }
+            if (!src.EncodeLiteralLength(src_p, src_anchor, ll, dst, ref dst_p, out var dst_token)) return 0;
 
         _next_match:
-            // Encode Offset
-            dst.Poke2(dst_p, (ushort) (src_p - src_ref));
-            dst_p += 2;
+            src_anchor = src.NextMatch32(ref src_p, ref src_ref, ll, dst, ref dst_p);
 
-            // Start Counting
-            src_p      += MINMATCH;
-            src_ref    += MINMATCH; // MinMatch verified
-            src_anchor =  src_p;
-
-            while (src_p < src_LASTLITERALS_STEPSIZE_1)
-            {
-                var diff = (int) src.Xor4(src_ref, src_p);
-                if (diff == 0)
-                {
-                    src_p   += STEPSIZE_32;
-                    src_ref += STEPSIZE_32;
-                    continue;
-                }
-
-                src_p += DEBRUIJN_TABLE_32[((uint) (diff & -(diff)) * 0x077CB531u) >> 27];
-                goto _endCount;
-            }
-
-            if (src_p < src_LASTLITERALS_1 && src.Equal2(src_ref, src_p))
-            {
-                src_p   += 2;
-                src_ref += 2;
-            }
-
-            if (src_p < src_LASTLITERALS && src[src_ref] == src[src_p]) src_p++;
-
-        _endCount:
-
-            // Encode MatchLength
-            len = src_p - src_anchor;
-            if (dst_p   + (len >> 8) > dst_LASTLITERALS_1) return 0; // compressed length >= uncompressed length
-
-            if (len >= ML_MASK)
-            {
-                dst[dst_token] += ML_MASK;
-                len            -= ML_MASK;
-                for (; len > 509; len -= 510)
-                {
-                    dst[dst_p++] = 0xFF;
-                    dst[dst_p++] = 0xFF;
-                }
-
-                if (len > 254)
-                {
-                    len          -= 0xFF;
-                    dst[dst_p++] =  0xFF;
-                }
-
-                dst[dst_p++] = (byte) len;
-            }
-            else
-            {
-                dst[dst_token] += (byte) len;
-            }
-
-            // Test end of chunk
-            if (src_p > src_mflimit)
-            {
-                src_anchor = src_p;
-                break;
-            }
+            var r = dst.EncodeMatchLength(src_p, src_mflimit, ref src_anchor, ll, ref dst_p, dst_token);
+            if (r == EncodeMatchLengthResult.Failed) return 0;
+            if (r == EncodeMatchLengthResult.Break) break;
 
             // Fill table
             hash_table[(int) ((src.Peek4(src_p - 2) * MULTIPLIER) >> HASH64K_ADJUST)] = (ushort) (src_p - 2 - src_base);
@@ -180,6 +76,6 @@ partial class LZ4Service32
         }
 
     _last_literals:
-        return !src.lastLiterals(dst, src_anchor, src_end, dst_end, ref dst_p) ? 0 : dst_p;
+        return !src.LastLiterals(dst, src_anchor, src_end, dst_end, ref dst_p) ? 0 : dst_p;
     }
 }
