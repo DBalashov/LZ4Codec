@@ -8,7 +8,7 @@ namespace LZ4;
 partial class LZ4Service32
 {
     // <=64K
-    protected override int encodeSmall(Span<ushort> hash_table, Span<byte> src, Span<byte> dst)
+    protected override int EncodeSmall(Span<ushort> hash_table, Span<byte> src, Span<byte> dst)
     {
         hash_table.Fill(0);
 
@@ -16,20 +16,20 @@ partial class LZ4Service32
         var src_anchor  = src_p;
         var src_base    = src_p;
         var src_end     = src_p   + src.Length;
-        var src_mflimit = src_end - MFLIMIT;
+        var src_mflimit = src_end - Consts.MFLIMIT;
 
         var dst_p   = 0;
         var dst_end = dst_p + dst.Length;
 
-        var ll = new LastLiteralsEncode(LASTLITERALS, STEPSIZE_32, src_end, dst_end);
+        var ll = new LastLiteralsEncode(Consts.LASTLITERALS, Consts32.STEPSIZE, src_end, dst_end);
 
         // Init
-        if (src.Length < MINLENGTH)
+        if (src.Length < Consts.MINLENGTH)
             goto _last_literals;
 
         // First Byte
         src_p++;
-        var h_fwd = (src.Peek4(src_p) * MULTIPLIER) >> HASH64K_ADJUST;
+        var h_fwd = (src.Peek4(src_p) * Consts.MULTIPLIER) >> Consts64.HASH_ADJUST; // ?
 
         // Main Loop
         while (true)
@@ -56,10 +56,10 @@ partial class LZ4Service32
             if (r == EncodeMatchLengthResult.Break) break;
 
             // Fill table
-            hash_table[(int) ((src.Peek4(src_p - 2) * MULTIPLIER) >> HASH64K_ADJUST)] = (ushort) (src_p - 2 - src_base);
+            hash_table[(int) ((src.Peek4(src_p - 2) * Consts.MULTIPLIER) >> Consts64.HASH_ADJUST)] = (ushort) (src_p - 2 - src_base); // ?
 
             // Test next position
-            var h = (src.Peek4(src_p) * MULTIPLIER) >> HASH64K_ADJUST;
+            var h = (src.Peek4(src_p) * Consts.MULTIPLIER) >> Consts64.HASH_ADJUST; // ?
             src_ref             = src_base + hash_table[(int) h];
             hash_table[(int) h] = (ushort) (src_p - src_base);
 
@@ -72,7 +72,7 @@ partial class LZ4Service32
 
             // Prepare next loop
             src_anchor = src_p++;
-            h_fwd      = (src.Peek4(src_p) * MULTIPLIER) >> HASH64K_ADJUST;
+            h_fwd      = (src.Peek4(src_p) * Consts.MULTIPLIER) >> Consts64.HASH_ADJUST; // ?
         }
 
     _last_literals:

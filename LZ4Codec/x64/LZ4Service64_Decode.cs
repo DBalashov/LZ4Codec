@@ -7,15 +7,15 @@ namespace LZ4;
 
 internal partial class LZ4Service64 : LZ4ServiceBase
 {
-    protected override int decode(Span<byte> src, Span<byte> dst)
+    protected override int Decode(Span<byte> src, Span<byte> dst)
     {
         var src_p   = 0;
         var dst_p   = 0;
         var dst_end = dst_p + dst.Length;
 
-        var dst_LASTLITERALS          = dst_end - LASTLITERALS;
-        var dst_COPYLENGTH            = dst_end - COPYLENGTH;
-        var dst_COPYLENGTH_STEPSIZE_4 = dst_end - COPYLENGTH - (STEPSIZE_64 - 4);
+        var dst_LASTLITERALS          = dst_end - Consts.LASTLITERALS;
+        var dst_COPYLENGTH            = dst_end - Consts.COPYLENGTH;
+        var dst_COPYLENGTH_STEPSIZE_4 = dst_end - Consts.COPYLENGTH - (Consts64.STEPSIZE - 4);
 
         // Main Loop
         while (true)
@@ -24,7 +24,7 @@ internal partial class LZ4Service64 : LZ4ServiceBase
 
             // get runlength
             var token = src[src_p++];
-            if ((length = (byte) (token >> ML_BITS)) == RUN_MASK)
+            if ((length = (byte) (token >> Consts.ML_BITS)) == Consts.RUN_MASK)
             {
                 int len;
                 for (; (len = src[src_p++]) == 0xFF; length += 0xFF)
@@ -45,7 +45,7 @@ internal partial class LZ4Service64 : LZ4ServiceBase
             if (dst_ref < 0) return -src_p; // Error : offset outside destination buffer
 
             // get matchlength
-            if ((length = (byte) (token & ML_MASK)) == ML_MASK)
+            if ((length = (byte) (token & Consts.ML_MASK)) == Consts.ML_MASK)
             {
                 for (; src[src_p] == 0xFF; length += 0xFF) src_p++;
                 length += src[src_p++];

@@ -37,7 +37,7 @@ static class Extenders_Decode
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static int CopyRepeatedSequence64(this Span<byte> dst, ref int dst_p, ref int dst_ref, int length)
     {
-        if ((dst_p - dst_ref) < LZ4ServiceBase.STEPSIZE_64)
+        if ((dst_p - dst_ref) < Consts64.STEPSIZE)
         {
             var dec64 = DECODER_TABLE_64[dst_p - dst_ref];
 
@@ -50,7 +50,7 @@ static class Extenders_Decode
             dst_ref += 4;
             dst_ref -= DECODER_TABLE_32[dst_p - dst_ref];
             dst.Copy4(dst_ref, dst_p);
-            dst_p   += LZ4ServiceBase.STEPSIZE_64 - 4;
+            dst_p   += Consts64.STEPSIZE - 4;
             dst_ref -= dec64;
         }
         else
@@ -60,13 +60,13 @@ static class Extenders_Decode
             dst_ref += 8;
         }
 
-        return dst_p + length - (LZ4ServiceBase.STEPSIZE_64 - 4);
+        return dst_p + length - (Consts64.STEPSIZE - 4);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static int CopyRepeatedSequence32(this Span<byte> dst, ref int dst_p, ref int dst_ref, int length)
     {
-        if ((dst_p - dst_ref) < LZ4Service32.STEPSIZE_32)
+        if ((dst_p - dst_ref) < Consts32.STEPSIZE)
         {
             const int dec64 = 0;
             dst[dst_p + 0] =  dst[dst_ref + 0];
@@ -77,7 +77,7 @@ static class Extenders_Decode
             dst_ref        += 4;
             dst_ref        -= DECODER_TABLE_32[dst_p - dst_ref];
             dst.Copy4(dst_ref, dst_p);
-            dst_p   += LZ4Service32.STEPSIZE_32 - 4;
+            dst_p   += Consts32.STEPSIZE - 4;
             dst_ref -= dec64;
         }
         else
@@ -87,6 +87,6 @@ static class Extenders_Decode
             dst_ref += 4;
         }
 
-        return dst_p + length - (LZ4Service32.STEPSIZE_32 - 4);
+        return dst_p + length - (Consts32.STEPSIZE - 4);
     }
 }

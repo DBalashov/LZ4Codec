@@ -42,6 +42,7 @@ static class Extenders_Encode
 
     #region FindMatch
 
+    // x86 version
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static unsafe bool FindMatch(this Span<byte> src,       Span<int> hash_table, uint    h_fwd, int src_mflimit,
                                         ref  int        src_p_fwd, ref int   src_p,      ref int src_base,
@@ -59,7 +60,7 @@ static class Extenders_Encode
 
                 if (src_p_fwd > src_mflimit) return false;
 
-                h_fwd   = (src.Peek4(src_p_fwd) * LZ4ServiceBase.MULTIPLIER) >> LZ4ServiceBase.HASH_ADJUST;
+                h_fwd   = (src.Peek4(src_p_fwd) * Consts.MULTIPLIER) >> Consts32.HASH_ADJUST;
                 src_ref = src_base + hash_table[(int) h];
 
                 *(ptrHash + (int) h) = (ushort) (src_p - src_base);
@@ -68,6 +69,7 @@ static class Extenders_Encode
         return true;
     }
 
+    // x64 version
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public static unsafe bool FindMatch(this Span<byte> src,       Span<ushort> hash_table, uint    h_fwd, int src_mflimit,
                                         ref  int        src_p_fwd, ref int      src_p,      ref int src_base,
@@ -85,7 +87,7 @@ static class Extenders_Encode
 
                 if (src_p_fwd > src_mflimit) return false;
 
-                h_fwd   = (src.Peek4(src_p_fwd) * LZ4ServiceBase.MULTIPLIER) >> LZ4ServiceBase.HASH64K_ADJUST;
+                h_fwd   = (src.Peek4(src_p_fwd) * Consts.MULTIPLIER) >> Consts64.HASH_ADJUST;
                 src_ref = src_base + *(ptrHash + (int) h);
 
                 *(ptrHash + (int) h) = (ushort) (src_p - src_base);
@@ -102,15 +104,15 @@ static class Extenders_Encode
     public static unsafe bool LastLiterals(this Span<byte> src, Span<byte> dst, int src_anchor, int src_end, int dst_end, ref int dst_p)
     {
         var lastRun = src_end - src_anchor;
-        if (dst_p + lastRun + 1 + (lastRun - LZ4ServiceBase.RUN_MASK + 0xFF) / 0xFF > dst_end) return false; // compressed length >= uncompressed length
+        if (dst_p + lastRun + 1 + (lastRun - Consts.RUN_MASK + 0xFF) / 0xFF > dst_end) return false; // compressed length >= uncompressed length
 
         fixed (byte* ptrDst = dst)
         {
-            if (lastRun >= LZ4ServiceBase.RUN_MASK)
+            if (lastRun >= Consts.RUN_MASK)
             {
-                *(ptrDst + (dst_p++)) = LZ4ServiceBase.RUN_MASK << LZ4ServiceBase.ML_BITS;
+                *(ptrDst + (dst_p++)) = Consts.RUN_MASK << Consts.ML_BITS;
 
-                lastRun -= LZ4ServiceBase.RUN_MASK;
+                lastRun -= Consts.RUN_MASK;
 
                 for (; lastRun > 254; lastRun -= 0xFF)
                     *(ptrDst + (dst_p++)) = 0xFF;
@@ -119,7 +121,7 @@ static class Extenders_Encode
             }
             else
             {
-                *(ptrDst + (dst_p++)) = (byte) (lastRun << LZ4ServiceBase.ML_BITS);
+                *(ptrDst + (dst_p++)) = (byte) (lastRun << Consts.ML_BITS);
             }
         }
 
@@ -136,7 +138,7 @@ static class Extenders_Encode
     public static bool TestNextPosition(this Span<byte> src, int     src_p,     int     src_base, ref int   src_ref,
                                         Span<byte>      dst, ref int dst_token, ref int dst_p,    Span<int> hash_table)
     {
-        var h = (src.Peek4(src_p) * LZ4ServiceBase.MULTIPLIER) >> LZ4ServiceBase.HASH_ADJUST;
+        var h = (src.Peek4(src_p) * Consts.MULTIPLIER) >> Consts32.HASH_ADJUST;
         src_ref             = src_base + hash_table[(int) h];
         hash_table[(int) h] = (src_p - src_base);
 
@@ -159,10 +161,10 @@ static class Extenders_Encode
 
         if (dst_p + length + (length >> 8) > ll.DestLiterals3) return false; // compressed length >= uncompressed length
 
-        if (length >= LZ4ServiceBase.RUN_MASK)
+        if (length >= Consts.RUN_MASK)
         {
-            var len = length - LZ4ServiceBase.RUN_MASK;
-            dst[dst_token] = (LZ4ServiceBase.RUN_MASK << LZ4ServiceBase.ML_BITS);
+            var len = length - Consts.RUN_MASK;
+            dst[dst_token] = Consts.RUN_MASK << Consts.ML_BITS;
             if (len > 254)
             {
                 do
@@ -181,7 +183,7 @@ static class Extenders_Encode
         }
         else
         {
-            dst[dst_token] = (byte) (length << LZ4ServiceBase.ML_BITS);
+            dst[dst_token] = (byte) (length << Consts.ML_BITS);
         }
 
         // Copy Literals
@@ -207,8 +209,8 @@ static class Extenders_Encode
         dst_p += 2;
 
         // Start Counting
-        src_p      += LZ4ServiceBase.MINMATCH;
-        src_ref    += LZ4ServiceBase.MINMATCH; // MinMatch already verified
+        src_p      += Consts.MINMATCH;
+        src_ref    += Consts.MINMATCH; // MinMatch already verified
         var src_anchor =  src_p;
 
         while (src_p < ll.SourceStepSize1)
@@ -216,12 +218,12 @@ static class Extenders_Encode
             var diff = (long) src.Xor8(src_ref, src_p);
             if (diff == 0)
             {
-                src_p   += LZ4ServiceBase.STEPSIZE_64;
-                src_ref += LZ4ServiceBase.STEPSIZE_64;
+                src_p   += Consts64.STEPSIZE;
+                src_ref += Consts64.STEPSIZE;
                 continue;
             }
 
-            src_p += DEBRUIJN_TABLE_64[((ulong) ((diff) & -(diff)) * 0x0218A392CDABBD3FL) >> 58];
+            src_p += DEBRUIJN_TABLE_64[((ulong) (diff & -diff) * 0x0218A392CDABBD3FL) >> 58];
             return src_anchor;
         }
 
@@ -248,8 +250,8 @@ static class Extenders_Encode
         dst_p += 2;
 
         // Start Counting
-        src_p      += LZ4ServiceBase.MINMATCH;
-        src_ref    += LZ4ServiceBase.MINMATCH; // MinMatch verified
+        src_p   += Consts.MINMATCH;
+        src_ref += Consts.MINMATCH; // MinMatch verified
         var src_anchor =  src_p;
 
         while (src_p < ll.SourceStepSize1)
@@ -257,12 +259,12 @@ static class Extenders_Encode
             var diff = (int) src.Xor4(src_ref, src_p);
             if (diff == 0)
             {
-                src_p   += LZ4Service32.STEPSIZE_32;
-                src_ref += LZ4Service32.STEPSIZE_32;
+                src_p   += Consts32.STEPSIZE;
+                src_ref += Consts32.STEPSIZE;
                 continue;
             }
 
-            src_p += DEBRUIJN_TABLE_32[((uint) (diff & -(diff)) * 0x077CB531u) >> 27];
+            src_p += DEBRUIJN_TABLE_32[((uint) (diff & -diff) * 0x077CB531u) >> 27];
             return src_anchor;
         }
 
@@ -287,10 +289,10 @@ static class Extenders_Encode
 
         if (dst_p + (lenDiff >> 8) > ll.DestLiterals1) return EncodeMatchLengthResult.Failed; // compressed length >= uncompressed length
 
-        if (lenDiff >= LZ4ServiceBase.ML_MASK)
+        if (lenDiff >= Consts.ML_MASK)
         {
-            dst[dst_token] += LZ4ServiceBase.ML_MASK;
-            lenDiff        -= LZ4ServiceBase.ML_MASK;
+            dst[dst_token] += Consts.ML_MASK;
+            lenDiff        -= Consts.ML_MASK;
             for (; lenDiff > 509; lenDiff -= 510)
             {
                 dst[dst_p++] = 0xFF;

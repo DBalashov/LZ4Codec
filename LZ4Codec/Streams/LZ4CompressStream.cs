@@ -8,7 +8,7 @@ public sealed class LZ4CompressStream : Stream
     readonly Stream stm;
     readonly bool   closeParentStream;
 
-    readonly byte[] accum = new byte[LZ4ServiceBase.LZ4_64KLIMIT - 1];
+    readonly byte[] accum = new byte[Consts.LZ4_64KLIMIT - 1];
     int             accumOffset;
 
     public LZ4CompressStream(Stream stm, bool closeParentStream = true)

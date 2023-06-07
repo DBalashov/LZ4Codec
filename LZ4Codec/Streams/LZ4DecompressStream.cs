@@ -10,7 +10,7 @@ public sealed class LZ4DecompressStream : Stream
     readonly bool   closeParentStream;
 
     readonly byte[] header             = new byte[8];
-    readonly byte[] currentBlockPacked = new byte[LZ4ServiceBase.LZ4_64KLIMIT - 1 + 8];
+    readonly byte[] currentBlockPacked = new byte[Consts.LZ4_64KLIMIT - 1 + 8];
 
     byte[] currentBlock       = Array.Empty<byte>();
     int    currentBlockOffset = 0;
