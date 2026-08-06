@@ -1,14 +1,23 @@
-﻿using System;
+using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace LZ4.Helpers;
 
 static class Extenders_Decode
 {
-    static readonly int[] DECODER_TABLE_64 = {0, 0, 0, -1, 0, 1, 2, 3};
-    static readonly int[] DECODER_TABLE_32 = {0, 3, 2, 3, 0, 0, 0, 0};
+    /// <summary> 0, 0, 0, -1, 0, 1, 2, 3 (stored as bytes, interpreted as sbyte) </summary>
+    static ReadOnlySpan<byte> DECODER_TABLE_64 => [0, 0, 0, 0xFF, 0, 1, 2, 3];
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    static ReadOnlySpan<byte> DECODER_TABLE_32 => [0, 3, 2, 3, 0, 0, 0, 0];
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static int Decoder64(int index) => (sbyte) Unsafe.Add(ref MemoryMarshal.GetReference(DECODER_TABLE_64), (nint) index);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static int Decoder32(int index) => Unsafe.Add(ref MemoryMarshal.GetReference(DECODER_TABLE_32), (nint) index);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CopyLiterals(this Span<byte> src, ref int src_p, Span<byte> dst, ref int dst_p, int length, int dst_COPYLENGTH, int dst_end, out int dst_cpy)
     {
         dst_cpy = dst_p + length;
@@ -34,21 +43,22 @@ static class Extenders_Decode
         return 0;
     }
     
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CopyRepeatedSequence64(this Span<byte> dst, ref int dst_p, ref int dst_ref, int length)
     {
         if ((dst_p - dst_ref) < Consts64.STEPSIZE)
         {
-            var dec64 = DECODER_TABLE_64[dst_p - dst_ref];
+            var dec64 = Decoder64(dst_p - dst_ref);
 
-            dst[dst_p + 0] = dst[dst_ref + 0];
-            dst[dst_p + 1] = dst[dst_ref + 1];
-            dst[dst_p + 2] = dst[dst_ref + 2];
-            dst[dst_p + 3] = dst[dst_ref + 3];
+            ref var p = ref MemoryMarshal.GetReference(dst);
+            Unsafe.Add(ref p, (nint) dst_p + 0) = Unsafe.Add(ref p, (nint) dst_ref + 0);
+            Unsafe.Add(ref p, (nint) dst_p + 1) = Unsafe.Add(ref p, (nint) dst_ref + 1);
+            Unsafe.Add(ref p, (nint) dst_p + 2) = Unsafe.Add(ref p, (nint) dst_ref + 2);
+            Unsafe.Add(ref p, (nint) dst_p + 3) = Unsafe.Add(ref p, (nint) dst_ref + 3);
 
             dst_p   += 4;
             dst_ref += 4;
-            dst_ref -= DECODER_TABLE_32[dst_p - dst_ref];
+            dst_ref -= Decoder32(dst_p - dst_ref);
             dst.Copy4(dst_ref, dst_p);
             dst_p   += Consts64.STEPSIZE - 4;
             dst_ref -= dec64;
@@ -63,19 +73,22 @@ static class Extenders_Decode
         return dst_p + length - (Consts64.STEPSIZE - 4);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CopyRepeatedSequence32(this Span<byte> dst, ref int dst_p, ref int dst_ref, int length)
     {
         if ((dst_p - dst_ref) < Consts32.STEPSIZE)
         {
             const int dec64 = 0;
-            dst[dst_p + 0] =  dst[dst_ref + 0];
-            dst[dst_p + 1] =  dst[dst_ref + 1];
-            dst[dst_p + 2] =  dst[dst_ref + 2];
-            dst[dst_p + 3] =  dst[dst_ref + 3];
-            dst_p          += 4;
-            dst_ref        += 4;
-            dst_ref        -= DECODER_TABLE_32[dst_p - dst_ref];
+
+            ref var p = ref MemoryMarshal.GetReference(dst);
+            Unsafe.Add(ref p, (nint) dst_p + 0) = Unsafe.Add(ref p, (nint) dst_ref + 0);
+            Unsafe.Add(ref p, (nint) dst_p + 1) = Unsafe.Add(ref p, (nint) dst_ref + 1);
+            Unsafe.Add(ref p, (nint) dst_p + 2) = Unsafe.Add(ref p, (nint) dst_ref + 2);
+            Unsafe.Add(ref p, (nint) dst_p + 3) = Unsafe.Add(ref p, (nint) dst_ref + 3);
+
+            dst_p   += 4;
+            dst_ref += 4;
+            dst_ref -= Decoder32(dst_p - dst_ref);
             dst.Copy4(dst_ref, dst_p);
             dst_p   += Consts32.STEPSIZE - 4;
             dst_ref -= dec64;

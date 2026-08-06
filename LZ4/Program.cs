@@ -17,7 +17,7 @@ using LZ4;
 
 var summary = BenchmarkRunner.Run<MainTest>();
 
-[SimpleJob(RuntimeMoniker.Net70, baseline: true)]
+[SimpleJob(RuntimeMoniker.Net10_0, baseline: true)]
 [WarmupCount(3)]
 [IterationCount(3)]
 [MemoryDiagnoser]
@@ -119,7 +119,7 @@ public class MainTest
 
         public string GetValue(Summary summary, BenchmarkCase benchmarkCase, SummaryStyle style)
         {
-            var r       = summary[benchmarkCase].ResultStatistics;
+            var r       = summary[benchmarkCase]!.ResultStatistics;
             var bytes   = ((int) benchmarkCase.Parameters["FileSize"] / 1024.0);
             var seconds = r.Mean / 1_000_000_000;
             return (bytes / seconds).ToString("F2", CultureInfo.InvariantCulture);

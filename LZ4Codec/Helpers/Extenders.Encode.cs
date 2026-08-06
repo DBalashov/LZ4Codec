@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace LZ4.Helpers;
 
@@ -20,19 +21,19 @@ static class Extenders_Encode
 
     const int MAX_DISTANCE = (1 << MAXD_LOG) - 1;
     
-    static readonly int[] DEBRUIJN_TABLE_64 =
-    {
+    static ReadOnlySpan<byte> DEBRUIJN_TABLE_64 =>
+    [
         0, 0, 0, 0, 0, 1, 1, 2, 0, 3, 1, 3, 1, 4, 2, 7,
         0, 2, 3, 6, 1, 5, 3, 5, 1, 3, 4, 4, 2, 5, 6, 7,
         7, 0, 1, 2, 3, 3, 4, 6, 2, 6, 5, 5, 3, 4, 5, 6,
         7, 1, 2, 4, 6, 4, 4, 5, 7, 2, 6, 5, 7, 6, 7, 7
-    };
-    
-    static readonly int[] DEBRUIJN_TABLE_32 =
-    {
+    ];
+
+    static ReadOnlySpan<byte> DEBRUIJN_TABLE_32 =>
+    [
         0, 0, 3, 0, 3, 1, 3, 0, 3, 2, 2, 1, 3, 2, 0, 1,
         3, 3, 1, 2, 2, 2, 2, 0, 3, 1, 2, 0, 1, 0, 1, 1
-    };
+    ];
     
     internal static int LZ4UnpackedLength(this Span<byte> span) =>
         span.Length < 8 ? 0 : BitConverter.ToInt32(span);
@@ -43,55 +44,64 @@ static class Extenders_Encode
     #region FindMatch
 
     // x86 version
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-    public static unsafe bool FindMatch(this Span<byte> src,       Span<int> hash_table, uint    h_fwd, int src_mflimit,
-                                        ref  int        src_p_fwd, ref int   src_p,      ref int src_base,
-                                        out  int        src_ref)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool FindMatch(this Span<byte> src,       Span<int> hash_table, uint    h_fwd, int src_mflimit,
+                                 ref  int        src_p_fwd, ref int   src_p,      ref int src_base,
+                                 out  int        src_ref)
     {
         src_ref = 0;
-        var findMatchAttempts = (1 << SKIPSTRENGTH) + 3;
-        fixed (int* ptrHash = hash_table)
-            do
-            {
-                var h    = h_fwd;
-                var step = findMatchAttempts++ >> SKIPSTRENGTH;
-                src_p     = src_p_fwd;
-                src_p_fwd = src_p + step;
+        var     findMatchAttempts = (1 << SKIPSTRENGTH) + 3;
+        ref var ptrHash           = ref MemoryMarshal.GetReference(hash_table);
+        ref var ptrSrc            = ref MemoryMarshal.GetReference(src);
 
-                if (src_p_fwd > src_mflimit) return false;
+        do
+        {
+            var h    = h_fwd;
+            var step = findMatchAttempts++ >> SKIPSTRENGTH;
+            src_p     = src_p_fwd;
+            src_p_fwd = src_p + step;
 
-                h_fwd   = (src.Peek4(src_p_fwd) * Consts.MULTIPLIER) >> Consts32.HASH_ADJUST;
-                src_ref = src_base + hash_table[(int) h];
+            if (src_p_fwd > src_mflimit) return false;
 
-                *(ptrHash + (int) h) = (ushort) (src_p - src_base);
-            } while ((src_ref < src_p - MAX_DISTANCE) || !src.Equal4(src_ref, src_p));
+            h_fwd = (Unsafe.ReadUnaligned<uint>(ref Unsafe.Add(ref ptrSrc, (nint) src_p_fwd)) * Consts.MULTIPLIER) >> Consts32.HASH_ADJUST;
+
+            ref var slot = ref Unsafe.Add(ref ptrHash, (nint) h);
+            src_ref = src_base + slot;
+            slot    = (ushort) (src_p - src_base);
+        } while ((src_ref < src_p - MAX_DISTANCE) ||
+                 Unsafe.ReadUnaligned<uint>(ref Unsafe.Add(ref ptrSrc, (nint) src_ref)) !=
+                 Unsafe.ReadUnaligned<uint>(ref Unsafe.Add(ref ptrSrc, (nint) src_p)));
 
         return true;
     }
 
     // x64 version
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-    public static unsafe bool FindMatch(this Span<byte> src,       Span<ushort> hash_table, uint    h_fwd, int src_mflimit,
-                                        ref  int        src_p_fwd, ref int      src_p,      ref int src_base,
-                                        out  int        src_ref)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool FindMatch(this Span<byte> src,       Span<ushort> hash_table, uint    h_fwd, int src_mflimit,
+                                 ref  int        src_p_fwd, ref int      src_p,      ref int src_base,
+                                 out  int        src_ref)
     {
         src_ref = 0;
-        var findMatchAttempts = (1 << SKIPSTRENGTH) + 3;
-        fixed (ushort* ptrHash = hash_table)
-            do
-            {
-                var h    = h_fwd;
-                var step = findMatchAttempts++ >> SKIPSTRENGTH;
-                src_p     = src_p_fwd;
-                src_p_fwd = src_p + step;
+        var     findMatchAttempts = (1 << SKIPSTRENGTH) + 3;
+        ref var ptrHash           = ref MemoryMarshal.GetReference(hash_table);
+        ref var ptrSrc            = ref MemoryMarshal.GetReference(src);
 
-                if (src_p_fwd > src_mflimit) return false;
+        do
+        {
+            var h    = h_fwd;
+            var step = findMatchAttempts++ >> SKIPSTRENGTH;
+            src_p     = src_p_fwd;
+            src_p_fwd = src_p + step;
 
-                h_fwd   = (src.Peek4(src_p_fwd) * Consts.MULTIPLIER) >> Consts64.HASH_ADJUST;
-                src_ref = src_base + *(ptrHash + (int) h);
+            if (src_p_fwd > src_mflimit) return false;
 
-                *(ptrHash + (int) h) = (ushort) (src_p - src_base);
-            } while (!src.Equal4(src_ref, src_p));
+            h_fwd = (Unsafe.ReadUnaligned<uint>(ref Unsafe.Add(ref ptrSrc, (nint) src_p_fwd)) * Consts.MULTIPLIER) >> Consts64.HASH_ADJUST;
+
+            ref var slot = ref Unsafe.Add(ref ptrHash, (nint) h);
+            src_ref = src_base + slot;
+            slot    = (ushort) (src_p - src_base);
+        } while (Unsafe.ReadUnaligned<uint>(ref Unsafe.Add(ref ptrSrc, (nint) src_ref)) !=
+                 Unsafe.ReadUnaligned<uint>(ref Unsafe.Add(ref ptrSrc, (nint) src_p)));
 
         return true;
     }
@@ -100,29 +110,28 @@ static class Extenders_Encode
 
     #region LastLiterals
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-    public static unsafe bool LastLiterals(this Span<byte> src, Span<byte> dst, int src_anchor, int src_end, int dst_end, ref int dst_p)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool LastLiterals(this Span<byte> src, Span<byte> dst, int src_anchor, int src_end, int dst_end, ref int dst_p)
     {
         var lastRun = src_end - src_anchor;
         if (dst_p + lastRun + 1 + (lastRun - Consts.RUN_MASK + 0xFF) / 0xFF > dst_end) return false; // compressed length >= uncompressed length
 
-        fixed (byte* ptrDst = dst)
+        ref var ptrDst = ref MemoryMarshal.GetReference(dst);
+
+        if (lastRun >= Consts.RUN_MASK)
         {
-            if (lastRun >= Consts.RUN_MASK)
-            {
-                *(ptrDst + (dst_p++)) = Consts.RUN_MASK << Consts.ML_BITS;
+            Unsafe.Add(ref ptrDst, (nint) dst_p++) = Consts.RUN_MASK << Consts.ML_BITS;
 
-                lastRun -= Consts.RUN_MASK;
+            lastRun -= Consts.RUN_MASK;
 
-                for (; lastRun > 254; lastRun -= 0xFF)
-                    *(ptrDst + (dst_p++)) = 0xFF;
+            for (; lastRun > 254; lastRun -= 0xFF)
+                Unsafe.Add(ref ptrDst, (nint) dst_p++) = 0xFF;
 
-                *(ptrDst + (dst_p++)) = (byte) lastRun;
-            }
-            else
-            {
-                *(ptrDst + (dst_p++)) = (byte) (lastRun << Consts.ML_BITS);
-            }
+            Unsafe.Add(ref ptrDst, (nint) dst_p++) = (byte) lastRun;
+        }
+        else
+        {
+            Unsafe.Add(ref ptrDst, (nint) dst_p++) = (byte) (lastRun << Consts.ML_BITS);
         }
 
         src.Slice(src_anchor, src_end - src_anchor).CopyTo(dst.Slice(dst_p));
@@ -134,7 +143,7 @@ static class Extenders_Encode
 
     #region TestNextPosition
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TestNextPosition(this Span<byte> src, int     src_p,     int     src_base, ref int   src_ref,
                                         Span<byte>      dst, ref int dst_token, ref int dst_p,    Span<int> hash_table)
     {
@@ -153,7 +162,7 @@ static class Extenders_Encode
 
     #region EncodeLiteralLength
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool EncodeLiteralLength(this Span<byte> src, int src_p, int src_anchor, LastLiteralsEncode ll, Span<byte> dst, ref int dst_p, out int dst_token)
     {
         var length = src_p - src_anchor;
@@ -201,7 +210,7 @@ static class Extenders_Encode
 
     #region NextMatch32/64
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int NextMatch64(this Span<byte> src, ref int src_p, ref int src_ref, LastLiteralsEncode ll, Span<byte> dst, ref int dst_p)
     {
         // Encode Offset
@@ -223,7 +232,7 @@ static class Extenders_Encode
                 continue;
             }
 
-            src_p += DEBRUIJN_TABLE_64[((ulong) (diff & -diff) * 0x0218A392CDABBD3FL) >> 58];
+            src_p += Unsafe.Add(ref MemoryMarshal.GetReference(DEBRUIJN_TABLE_64), (nint) (((ulong) (diff & -diff) * 0x0218A392CDABBD3FL) >> 58));
             return src_anchor;
         }
 
@@ -243,7 +252,7 @@ static class Extenders_Encode
         return src_anchor;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int NextMatch32(this Span<byte> src, ref int src_p, ref int src_ref, LastLiteralsEncode ll, Span<byte> dst, ref int dst_p)
     {
         dst.Poke2(dst_p, (ushort) (src_p - src_ref));
@@ -264,7 +273,7 @@ static class Extenders_Encode
                 continue;
             }
 
-            src_p += DEBRUIJN_TABLE_32[((uint) (diff & -diff) * 0x077CB531u) >> 27];
+            src_p += Unsafe.Add(ref MemoryMarshal.GetReference(DEBRUIJN_TABLE_32), (nint) (((uint) (diff & -diff) * 0x077CB531u) >> 27));
             return src_anchor;
         }
 
@@ -282,7 +291,7 @@ static class Extenders_Encode
 
     #region EncodeMatchLength
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static EncodeMatchLengthResult EncodeMatchLength(this Span<byte> dst, int src_p, int src_mflimit, ref int src_anchor, LastLiteralsEncode ll, ref int dst_p, int dst_token)
     {
         var lenDiff = src_p - src_anchor;
